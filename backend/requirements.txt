@@ -1,0 +1,27 @@
+fastapi>=0.115.5
+uvicorn[standard]>=0.32.1
+python-dotenv>=1.0.1
+pydantic>=2.10.3
+pydantic-settings>=2.6.1
+
+# Supabase
+supabase>=2.10.0
+
+# LangGraph + LangChain
+langgraph>=0.2.59
+langchain>=0.3.12
+langchain-anthropic>=0.3.3
+langchain-core>=0.3.30
+
+# Anthropic SDK
+anthropic>=0.49.0
+
+# Celery + Redis
+celery>=5.4.0
+redis>=5.2.1
+
+# HTTP client
+httpx>=0.27.2
+
+# Utilities
+python-multipart>=0.0.18
