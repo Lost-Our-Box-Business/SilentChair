@@ -33,6 +33,9 @@ export type PipelineRunResult = {
   approval_action: string | null;
   published_urls: string[];
   social_posts: Array<{ platform: string; text: string; article_title: string }>;
+  qualified_leads?: Record<string, unknown>[];
+  contracts?: Record<string, unknown>[];
+  invoices?: Record<string, unknown>[];
   log: string[];
 };
 
