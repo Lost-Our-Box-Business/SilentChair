@@ -1,0 +1,595 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { useParams } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useRouter } from "next/navigation";
+import {
+  Play, Loader2, CheckCircle2, Clock, AlertCircle, RefreshCw, ExternalLink,
+  Users, FileText, Receipt, DollarSign, Settings,
+} from "lucide-react";
+import {
+  getActivityFeed, approveActivity, runPipeline,
+  getLeads, getContracts, getInvoices,
+  updateLeadStatus, updateContractStatus, updateInvoiceStatus,
+  type ActivityEntry, type PipelineRunResult, type Lead, type Contract, type Invoice,
+} from "@/lib/activity-api";
+import { getBudgetState, type BudgetState } from "@/lib/usage-api";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function actionTypeLabel(type: string): string {
+  const map: Record<string, string> = {
+    pipeline_log: "Pipeline", approval_required: "Approval needed", pipeline_complete: "Complete",
+  };
+  return map[type] ?? type.replace(/_/g, " ");
+}
+
+const LEAD_STATUS_COLORS: Record<Lead["status"], string> = {
+  new: "outline", contacted: "secondary", qualified: "default",
+  proposal_sent: "secondary", won: "default", lost: "destructive",
+} as const;
+
+const CONTRACT_STATUS_COLORS: Record<Contract["status"], string> = {
+  draft: "outline", sent: "secondary", signed: "default",
+} as const;
+
+const INVOICE_STATUS_COLORS: Record<Invoice["status"], string> = {
+  draft: "outline", sent: "secondary", paid: "default",
+} as const;
+
+type Tab = "activity" | "leads" | "contracts" | "invoices" | "usage";
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+const DEPT_LABELS: Record<string, string> = {
+  editorial: "Editorial", seo: "SEO", social_media: "Social Media",
+  distribution: "Distribution", analytics: "Analytics",
+  market_research: "Market Research", lead_research: "Lead Research",
+  lead_qualification: "Lead Qualification", outreach: "Outreach",
+  lead_generation: "Lead Generation", sales_outreach: "Sales Outreach",
+  proposals_contracts: "Proposals & Contracts", billing: "Billing",
+};
+
+function formatCost(n: number): string {
+  if (n === 0) return "$0.00";
+  if (n < 0.001) return `$${n.toFixed(6)}`;
+  if (n < 0.01) return `$${n.toFixed(4)}`;
+  return `$${n.toFixed(4)}`;
+}
+
+export default function BusinessDetailPage() {
+  const { businessId } = useParams<{ businessId: string }>();
+  const router = useRouter();
+  const [tab, setTab] = useState<Tab>("activity");
+
+  const [feed, setFeed] = useState<ActivityEntry[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [budgetState, setBudgetState] = useState<BudgetState | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const [running, setRunning] = useState(false);
+  const [runResult, setRunResult] = useState<PipelineRunResult | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [feedData, leadsData, contractsData, invoicesData, budgetData] = await Promise.all([
+        getActivityFeed(businessId),
+        getLeads(businessId),
+        getContracts(businessId),
+        getInvoices(businessId),
+        getBudgetState(businessId).catch(() => null),
+      ]);
+      setFeed(feedData);
+      setLeads(leadsData);
+      setContracts(contractsData);
+      setInvoices(invoicesData);
+      setBudgetState(budgetData);
+    } catch { /* silent */ } finally {
+      setLoading(false);
+    }
+  }, [businessId]);
+
+  useEffect(() => { loadAll(); }, [loadAll]);
+
+  async function handleRun() {
+    setRunning(true); setRunResult(null); setRunError(null);
+    try {
+      const result = await runPipeline(businessId);
+      setRunResult(result);
+      await loadAll();
+    } catch (e: unknown) {
+      setRunError(e instanceof Error ? e.message : "Pipeline failed.");
+    } finally { setRunning(false); }
+  }
+
+  async function handleApprove(id: string) {
+    setApprovingId(id);
+    try { await approveActivity(id); await loadAll(); }
+    catch { /* leave entry visible */ }
+    finally { setApprovingId(null); }
+  }
+
+  const pendingApprovals = feed.filter((e) => e.requires_approval && !e.approved_at);
+
+  const TABS: { id: Tab; label: string; icon: React.ElementType; count?: number }[] = [
+    { id: "activity", label: "Activity", icon: Clock, count: feed.length },
+    { id: "leads", label: "Leads", icon: Users, count: leads.length },
+    { id: "contracts", label: "Contracts", icon: FileText, count: contracts.length },
+    { id: "invoices", label: "Invoices", icon: Receipt, count: invoices.length },
+    { id: "usage", label: "Usage", icon: DollarSign },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">Business Operations</h1>
+          <p className="text-sm text-muted-foreground">Activity, leads, contracts, and invoices</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {budgetState && (
+            <span className="text-xs text-muted-foreground hidden sm:inline">
+              today: <span className="font-mono font-medium text-foreground">{formatCost(budgetState.today_spend)}</span>
+              {budgetState.daily_budget != null && (
+                <span> / {formatCost(budgetState.daily_budget)}</span>
+              )}
+            </span>
+          )}
+          <Button variant="outline" size="sm" onClick={loadAll} disabled={loading}>
+            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+          <Button size="sm" onClick={handleRun} disabled={running}>
+            {running ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Play className="h-3.5 w-3.5 mr-1.5" />}
+            {running ? "Running…" : "Run pipeline now"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Run result */}
+      {runResult && (
+        <Card className={runResult.status === "awaiting_approval" ? "border-yellow-500/50 bg-yellow-500/5" : "border-green-500/50 bg-green-500/5"}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              {runResult.status === "awaiting_approval"
+                ? <AlertCircle className="h-4 w-4 text-yellow-500" />
+                : <CheckCircle2 className="h-4 w-4 text-green-500" />}
+              {runResult.status === "awaiting_approval" ? "Pipeline paused — approval needed" : "Pipeline complete"}
+            </CardTitle>
+            {runResult.approval_action && <CardDescription className="text-xs">{runResult.approval_action}</CardDescription>}
+          </CardHeader>
+          <CardContent className="pt-0 space-y-2 text-xs text-muted-foreground">
+            {runResult.published_urls && runResult.published_urls.length > 0 && (
+              <div>
+                {runResult.published_urls.map((url) => (
+                  <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary hover:underline">
+                    {url} <ExternalLink className="h-3 w-3" />
+                  </a>
+                ))}
+              </div>
+            )}
+            {runResult.qualified_leads && runResult.qualified_leads.length > 0 && (
+              <p>{runResult.qualified_leads.length} qualified lead(s) found</p>
+            )}
+            {runResult.contracts && runResult.contracts.length > 0 && (
+              <p>{runResult.contracts.length} contract(s) drafted</p>
+            )}
+            {runResult.invoices && runResult.invoices.length > 0 && (
+              <p>{runResult.invoices.length} invoice(s) generated</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+      {runError && (
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardHeader className="pb-0">
+            <CardTitle className="text-sm flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-4 w-4" /> Pipeline error
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-2"><p className="text-xs text-muted-foreground">{runError}</p></CardContent>
+        </Card>
+      )}
+
+      {/* Pending approvals (always visible) */}
+      {pendingApprovals.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="text-sm font-medium flex items-center gap-1.5">
+            <AlertCircle className="h-4 w-4 text-yellow-500" /> Pending approvals ({pendingApprovals.length})
+          </h2>
+          {pendingApprovals.map((entry) => {
+            const emails = entry.detail?.outreach_emails ?? [];
+            const articles = entry.detail?.edited_articles ?? [];
+            return (
+              <Card key={entry.id} className="border-yellow-500/40 bg-yellow-500/5">
+                <CardHeader className="py-3 px-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium">{entry.summary}</p>
+                      <p className="text-xs text-muted-foreground">{timeAgo(entry.created_at)}</p>
+                    </div>
+                    <Button
+                      size="sm" variant="outline"
+                      className="shrink-0 text-xs border-yellow-500/50 hover:bg-yellow-500/10"
+                      onClick={() => handleApprove(entry.id)}
+                      disabled={approvingId === entry.id}
+                    >
+                      {approvingId === entry.id && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                      Approve & send
+                    </Button>
+                  </div>
+                </CardHeader>
+
+                {/* Outreach email previews */}
+                {emails.length > 0 && (
+                  <CardContent className="pt-0 pb-3 px-4 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {emails.length} email{emails.length !== 1 ? "s" : ""} queued — review before sending:
+                    </p>
+                    {emails.map((email, i) => (
+                      <details key={i} className="rounded-lg border bg-background overflow-hidden">
+                        <summary className="flex items-center justify-between gap-3 px-3 py-2 cursor-pointer list-none hover:bg-muted/40 transition-colors">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-xs font-medium truncate">{email.subject}</span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground shrink-0">
+                            → {email.to_name} &lt;{email.to_email}&gt;
+                          </span>
+                        </summary>
+                        <div className="border-t px-3 py-2 space-y-2">
+                          <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
+                            <span><span className="font-medium">To:</span> {email.to_name} &lt;{email.to_email}&gt;</span>
+                            {(email.lead_data?.company as string) && (
+                              <span><span className="font-medium">Company:</span> {email.lead_data.company as string}</span>
+                            )}
+                            {(email.lead_data?.score as number) && (
+                              <span><span className="font-medium">Score:</span> {email.lead_data.score as number}/10</span>
+                            )}
+                          </div>
+                          <div
+                            className="text-xs leading-relaxed rounded bg-muted/30 p-3 max-h-48 overflow-y-auto"
+                            dangerouslySetInnerHTML={{ __html: email.body_html }}
+                          />
+                        </div>
+                      </details>
+                    ))}
+                  </CardContent>
+                )}
+
+                {/* Article previews */}
+                {articles.length > 0 && (
+                  <CardContent className="pt-0 pb-3 px-4 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {articles.length} article{articles.length !== 1 ? "s" : ""} ready to publish — review before going live:
+                    </p>
+                    {articles.map((article, i) => (
+                      <details key={i} className="rounded-lg border bg-background overflow-hidden">
+                        <summary className="flex items-center justify-between gap-3 px-3 py-2 cursor-pointer list-none hover:bg-muted/40 transition-colors">
+                          <span className="text-xs font-medium truncate">{article.title}</span>
+                          <span className="text-[10px] text-muted-foreground shrink-0 font-mono">{article.slug}</span>
+                        </summary>
+                        <div className="border-t px-3 py-2 space-y-1.5">
+                          {article.meta_description && (
+                            <p className="text-[11px] text-muted-foreground italic">{article.meta_description}</p>
+                          )}
+                          <div
+                            className="text-xs leading-relaxed rounded bg-muted/30 p-3 max-h-48 overflow-y-auto"
+                            dangerouslySetInnerHTML={{ __html: article.content }}
+                          />
+                        </div>
+                      </details>
+                    ))}
+                  </CardContent>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="space-y-4">
+        <div className="flex gap-1 border-b">
+          {TABS.map(({ id, label, icon: Icon, count }) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px focus-visible:outline-none ${
+                tab === id ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+              {count !== undefined && count > 0 && (
+                <span className="text-[10px] bg-muted rounded-full px-1.5 py-0.5 ml-0.5">{count}</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Activity Tab */}
+        {tab === "activity" && (
+          <div className="space-y-1">
+            {loading ? (
+              <div className="flex items-center gap-2 py-8 justify-center text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /><span className="text-sm">Loading…</span>
+              </div>
+            ) : feed.length === 0 ? (
+              <Card><CardContent className="py-12 text-center"><p className="text-sm text-muted-foreground">No activity yet. Run the pipeline to get started.</p></CardContent></Card>
+            ) : (
+              feed.slice(0, 30).map((entry) => (
+                <div key={entry.id} className="flex items-start gap-3 rounded-lg border px-3 py-2.5">
+                  {entry.requires_approval && !entry.approved_at
+                    ? <AlertCircle className="h-4 w-4 text-yellow-500 shrink-0 mt-0.5" />
+                    : entry.approved_at
+                    ? <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                    : <Clock className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm leading-snug">{entry.summary}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <Badge variant="outline" className="text-[10px] px-1 py-0">{actionTypeLabel(entry.action_type)}</Badge>
+                      <span className="text-xs text-muted-foreground">{timeAgo(entry.created_at)}</span>
+                      {entry.approved_at && <span className="text-xs text-green-600">approved {timeAgo(entry.approved_at)}</span>}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Leads Tab */}
+        {tab === "leads" && (
+          <div className="space-y-2">
+            {leads.length === 0 ? (
+              <Card><CardContent className="py-12 text-center"><p className="text-sm text-muted-foreground">No leads yet. Run the pipeline to generate leads.</p></CardContent></Card>
+            ) : (
+              leads.map((lead) => (
+                <Card key={lead.id}>
+                  <CardHeader className="py-3 px-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-medium">{lead.name}</p>
+                        <p className="text-xs text-muted-foreground">{lead.company}{lead.email ? ` · ${lead.email}` : ""}</p>
+                        {lead.notes && <p className="text-xs text-muted-foreground line-clamp-1">{lead.notes}</p>}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {lead.score !== null && (
+                          <span className="text-xs font-medium bg-muted rounded px-1.5 py-0.5">Score: {lead.score}/10</span>
+                        )}
+                        <Badge variant={(LEAD_STATUS_COLORS[lead.status] as "default" | "secondary" | "destructive" | "outline") ?? "outline"} className="text-[10px] capitalize">
+                          {lead.status.replace("_", " ")}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex gap-1 mt-2 flex-wrap">
+                      {(["new", "contacted", "qualified", "proposal_sent", "won", "lost"] as Lead["status"][]).map((s) => (
+                        <button
+                          key={s}
+                          disabled={lead.status === s}
+                          onClick={async () => {
+                            await updateLeadStatus(lead.id, s);
+                            setLeads((prev) => prev.map((l) => l.id === lead.id ? { ...l, status: s } : l));
+                          }}
+                          className={`text-[10px] px-2 py-0.5 rounded border transition-colors focus-visible:outline-none ${lead.status === s ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}
+                        >
+                          {s.replace("_", " ")}
+                        </button>
+                      ))}
+                    </div>
+                  </CardHeader>
+                </Card>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Contracts Tab */}
+        {tab === "contracts" && (
+          <div className="space-y-2">
+            {contracts.length === 0 ? (
+              <Card><CardContent className="py-12 text-center"><p className="text-sm text-muted-foreground">No contracts yet. Contracts are generated automatically by the client acquisition pipeline.</p></CardContent></Card>
+            ) : (
+              contracts.map((contract) => (
+                <Card key={contract.id}>
+                  <CardHeader className="py-3 px-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-medium">{contract.title}</p>
+                        <p className="text-xs text-muted-foreground">Created {timeAgo(contract.created_at)}</p>
+                      </div>
+                      <Badge variant={(CONTRACT_STATUS_COLORS[contract.status] as "default" | "secondary" | "outline") ?? "outline"} className="text-[10px] capitalize shrink-0">
+                        {contract.status}
+                      </Badge>
+                    </div>
+                    <div className="flex gap-1 mt-2">
+                      {(["draft", "sent", "signed"] as Contract["status"][]).map((s) => (
+                        <button
+                          key={s}
+                          disabled={contract.status === s}
+                          onClick={async () => {
+                            await updateContractStatus(contract.id, s);
+                            setContracts((prev) => prev.map((c) => c.id === contract.id ? { ...c, status: s } : c));
+                          }}
+                          className={`text-[10px] px-2 py-0.5 rounded border transition-colors focus-visible:outline-none ${contract.status === s ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                    <details className="mt-2">
+                      <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">View contract HTML</summary>
+                      <div className="mt-2 rounded border bg-muted/30 p-3 text-xs overflow-auto max-h-64"
+                        dangerouslySetInnerHTML={{ __html: contract.content }} />
+                    </details>
+                  </CardHeader>
+                </Card>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Usage Tab */}
+        {tab === "usage" && (
+          <div className="space-y-4">
+            {budgetState ? (
+              <>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border p-4 bg-muted/30 space-y-1">
+                    <p className="text-xs text-muted-foreground">Today's spend</p>
+                    <p className="text-lg font-bold">{formatCost(budgetState.today_spend)}</p>
+                    {budgetState.daily_budget != null && (
+                      <div className="mt-1">
+                        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${(budgetState.today_spend / budgetState.daily_budget) > 0.9 ? "bg-destructive" : (budgetState.today_spend / budgetState.daily_budget) > 0.7 ? "bg-amber-500" : "bg-primary"}`}
+                            style={{ width: `${Math.min(100, (budgetState.today_spend / budgetState.daily_budget) * 100)}%` }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          of {formatCost(budgetState.daily_budget)} daily limit
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="rounded-xl border p-4 bg-muted/30 space-y-1">
+                    <p className="text-xs text-muted-foreground">Daily limit</p>
+                    <p className="text-lg font-bold">
+                      {budgetState.daily_budget != null ? formatCost(budgetState.daily_budget) : "Unlimited"}
+                    </p>
+                    {budgetState.daily_remaining != null && (
+                      <p className="text-[10px] text-muted-foreground">{formatCost(budgetState.daily_remaining)} remaining</p>
+                    )}
+                  </div>
+                  <div className="rounded-xl border p-4 bg-muted/30 flex items-end justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Budget settings</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Set limits & allocations</p>
+                    </div>
+                    <button
+                      onClick={() => router.push(`/dashboard/business/${businessId}/budget`)}
+                      className="flex items-center gap-1 text-xs text-primary hover:underline"
+                    >
+                      <Settings className="h-3 w-3" /> Configure
+                    </button>
+                  </div>
+                </div>
+
+                {Object.keys(budgetState.today_by_dept).length > 0 && (
+                  <div className="rounded-xl border p-4 space-y-2">
+                    <p className="text-xs font-medium">Today's spend by department</p>
+                    {Object.entries(budgetState.today_by_dept)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([dept, cost]) => (
+                        <div key={dept} className="flex items-center gap-3 text-sm">
+                          <span className="text-muted-foreground text-xs w-40 shrink-0">{DEPT_LABELS[dept] ?? dept}</span>
+                          <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-primary/60"
+                              style={{
+                                width: budgetState.today_spend > 0
+                                  ? `${Math.min(100, (cost / budgetState.today_spend) * 100)}%`
+                                  : "0%",
+                              }}
+                            />
+                          </div>
+                          <span className="font-mono text-xs w-20 text-right shrink-0">{formatCost(cost)}</span>
+                          {budgetState.dept_budgets[dept] != null && (
+                            <span className="text-[10px] text-muted-foreground w-16 shrink-0">
+                              / {formatCost(budgetState.dept_budgets[dept]!)}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                )}
+
+                {Object.keys(budgetState.today_by_dept).length === 0 && (
+                  <Card>
+                    <CardContent className="py-12 text-center">
+                      <p className="text-sm text-muted-foreground">No usage today. Run the pipeline to start tracking costs.</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            ) : (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <p className="text-sm text-muted-foreground">Usage data unavailable. Run the migration and reload.</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* Invoices Tab */}
+        {tab === "invoices" && (
+          <div className="space-y-2">
+            {invoices.length === 0 ? (
+              <Card><CardContent className="py-12 text-center"><p className="text-sm text-muted-foreground">No invoices yet. Invoices are generated after contracts in the client acquisition pipeline.</p></CardContent></Card>
+            ) : (
+              invoices.map((invoice) => (
+                <Card key={invoice.id}>
+                  <CardHeader className="py-3 px-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-medium">{invoice.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {invoice.amount > 0 && <span className="font-medium text-foreground">${invoice.amount.toLocaleString()}</span>}
+                          {invoice.amount > 0 && " · "}
+                          Created {timeAgo(invoice.created_at)}
+                        </p>
+                      </div>
+                      <Badge variant={(INVOICE_STATUS_COLORS[invoice.status] as "default" | "secondary" | "outline") ?? "outline"} className="text-[10px] capitalize shrink-0">
+                        {invoice.status}
+                      </Badge>
+                    </div>
+                    <div className="flex gap-1 mt-2">
+                      {(["draft", "sent", "paid"] as Invoice["status"][]).map((s) => (
+                        <button
+                          key={s}
+                          disabled={invoice.status === s}
+                          onClick={async () => {
+                            await updateInvoiceStatus(invoice.id, s);
+                            setInvoices((prev) => prev.map((i) => i.id === invoice.id ? { ...i, status: s } : i));
+                          }}
+                          className={`text-[10px] px-2 py-0.5 rounded border transition-colors focus-visible:outline-none ${invoice.status === s ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                    <details className="mt-2">
+                      <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">View invoice HTML</summary>
+                      <div className="mt-2 rounded border bg-muted/30 p-3 text-xs overflow-auto max-h-64"
+                        dangerouslySetInnerHTML={{ __html: invoice.content }} />
+                    </details>
+                  </CardHeader>
+                </Card>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

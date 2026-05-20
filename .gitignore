@@ -5,6 +5,10 @@ __pycache__/
 .venv/
 venv/
 .env
+.env.*
+
+# Celery beat schedule
+celerybeat-schedule.*
 
 # Node
 node_modules/
@@ -12,6 +16,14 @@ node_modules/
 out/
 .env.local
 .env*.local
+
+# Secrets
+client_secret_*.json
+
+# Dev tooling
+.dev-pids.json
+.dropboxignore
+tsconfig.tsbuildinfo
 
 # Misc
 .DS_Store

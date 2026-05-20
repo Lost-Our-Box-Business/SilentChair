@@ -1,4 +1,5 @@
 import uuid
+import traceback
 from fastapi import APIRouter, HTTPException
 from app.models.interview import InterviewRequest, InterviewResponse
 from app.agents.business_analyst import run_interview_turn
@@ -16,6 +17,7 @@ async def interview_turn(req: InterviewRequest):
     try:
         result = run_interview_turn(history=history, user_message=req.message)
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
     if result["is_complete"] and result["business_profile"]:

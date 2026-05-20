@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_service_role_key: str
     anthropic_api_key: str
+    serper_api_key: str = ""
+    resend_api_key: str = ""
     redis_url: str = "redis://localhost:6379"
     app_env: str = "development"
     frontend_url: str = "http://localhost:3000"

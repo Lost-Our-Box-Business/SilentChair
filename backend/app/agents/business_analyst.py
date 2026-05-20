@@ -99,7 +99,7 @@ def _extract_profile(messages: list) -> dict | None:
     conversation_text = "\n".join(
         f"{m.type.upper()}: {m.content}" for m in messages
     )
-    prompt = EXTRACTION_PROMPT.format(conversation=conversation_text)
+    prompt = EXTRACTION_PROMPT.replace("{conversation}", conversation_text)
     response = llm.invoke([HumanMessage(content=prompt)])
     try:
         raw = response.content.strip()
