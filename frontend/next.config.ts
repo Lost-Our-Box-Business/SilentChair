@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
         has: [
           {
             type: "host",
-            value: `(?<subdomain>[^.]+)\\.${ROOT_DOMAIN.replace(".", "\\.")}`,
+            value: `(?<subdomain>(?!www$)[^.]+)\\.${ROOT_DOMAIN.replace(".", "\\.")}`,
           },
         ],
         destination: "/site/:subdomain/:path*",
