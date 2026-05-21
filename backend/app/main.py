@@ -5,9 +5,16 @@ from app.routers import interview, departments, activity, crm, usage, website
 
 app = FastAPI(title="SilentChair API", version="0.1.0")
 
+_allowed_origins = list({
+    settings.frontend_url,
+    "http://localhost:3000",
+    "https://silentchair.app",
+    "https://www.silentchair.app",
+})
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url, "http://localhost:3000"],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
