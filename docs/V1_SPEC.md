@@ -32,14 +32,29 @@ V1 is scoped to be achievable without building everything in the vision. It esta
 
 ### 3. Business Dashboard
 - Overview of the Living Business Document (simplified)
-- Activity feed: what each agent has done recently
-- Pending approvals: actions waiting for user sign-off (when approval mode is on)
-- Budget tracker: credits remaining this month, spend by department
 - Quick access to each department
+- AI spend tracker: balance remaining this month, spend by department, cost per task (retrospective)
 
-### 4. AI Workforce — V1 Departments
+### 4. Task Board
 
-All departments are accessible to all users on all tiers. Tier differences are credit volume, not feature access.
+A **sprint-board style view** showing all planned, in-progress, and completed tasks across the business. This is the primary place a user manages their AI workforce day to day.
+
+**Columns:**
+- **Planned** — tasks queued but not yet started
+- **In Progress** — tasks the AI is actively working on
+- **Blocked by User** — tasks paused because they need the user's attention, approval, or input. This is prominently surfaced so nothing gets missed.
+- **Completed** — finished tasks with outcomes and cost shown
+
+**Features:**
+- **Department filter:** chips or tabs to show tasks from one or all departments at once
+- **Color-coded labels:** each department has a distinct color; task type (content, outreach, report, etc.) has a secondary label
+- **User-created tasks:** users can add tasks manually — for themselves or assigned to a specific agent/department. Free-text description; the assigned agent interprets and executes.
+- **Task detail:** click any task card to see the full output, cost, timestamps, and any required action
+- **Notification toggle:** per-business setting to turn on/off push notifications and/or email when a task lands in "Blocked by User." Default: on. Can be toggled from the task board header or from notification settings.
+
+### 5. AI Workforce — V1 Departments
+
+All departments are accessible to all users on all tiers. All users can run unlimited businesses. Tier differences are AI spend budget and coaching volume only.
 
 #### Marketing Department
 - **Capabilities:** Social media content (draft + schedule + publish), blog posts (research + write + publish), email campaigns (design + send), performance tracking
@@ -79,7 +94,7 @@ All departments are accessible to all users on all tiers. Tier differences are c
 - **Image generation:** Uses best-available model for the brief (Flux, DALL-E 3)
 - **Note:** Direct ad platform API connections require the user to connect their accounts (OAuth)
 
-### 5. Human Business Coach
+### 6. Human Business Coach
 - Coach scheduling via Calendly embed inside the platform
 - User selects from available coach time slots
 - Pre-session: AI generates a briefing document for the coach (business summary, recent activity, suggested topics)
@@ -87,7 +102,7 @@ All departments are accessible to all users on all tiers. Tier differences are c
 - Sessions conducted via Zoom (or user's preferred video tool; link provided in booking confirmation)
 - Coach notes accessible to the AI after the session
 
-### 6. Website Builder
+### 7. Website Builder
 - Natural language chat interface to build and modify a website
 - Site hosted on `{slug}.silentchair.app` subdomain
 - Custom domain support: user provides their domain, platform provides CNAME instructions
@@ -95,24 +110,26 @@ All departments are accessible to all users on all tiers. Tier differences are c
 - Publish to live URL with one click
 - AI has full access to Living Business Document when building the site (brand, products, tone)
 
-### 7. Subscription and Billing
+### 8. Subscription and Billing
 - Stripe integration for all payments
 - Monthly subscription tiers (see VISION.md for pricing)
-- Credit tracking per user (consumed, remaining, rollover policy TBD)
-- Credit cost shown before any agent action when approval mode is on
-- Additional credit purchases available at any time
-- Free trial: 14 days, 100 free credits, no credit card required
+- Dollar balance per user: subscription tier includes monthly AI spend allowance; every agent action deducts its actual cost from the balance
+- After each task completes, the user sees what it cost (retrospective transparency)
+- Top-up purchases available at any time in dollar increments ($10 minimum)
+- No business count limits — unlimited businesses on any tier; more businesses consume more AI spend balance
+- Free trial: 14 days, $5 in AI spend included, no credit card required
 - Upgrade/downgrade/cancel self-service from the billing settings page
 
-### 8. Language Support
+### 9. Language Support
 - Auto-detect user's system language on first load
-- Language setting in user profile (single dropdown)
+- **Language selector button always visible in the navbar on every page** — one click changes the language for the entire platform immediately
+- Language setting also available in user profile settings for discoverability
 - All AI agent responses in the user's selected language
 - All generated content (posts, emails, blog articles) in the user's language
-- UI translated for all major languages (i18n via next-intl or similar)
+- UI translated for all major languages (i18n via next-intl)
 - V1 launch languages: English, Spanish, French, Portuguese, German (expand based on user demand)
 
-### 9. Settings and Account Management
+### 10. Settings and Account Management
 - Profile settings (name, language, timezone, notification preferences)
 - Connected accounts (social platforms, ad accounts, WordPress, etc.)
 - API key management (bring your own keys for Anthropic, Serper, Resend, etc.)
@@ -213,7 +230,7 @@ Items to ship immediately after V1 stabilizes:
 | Work Item | Description |
 |---|---|
 | Living Business Document system | Structured JSONB in Supabase; versioned; read by all agents |
-| Credit tracking system | Per-user monthly credit ledger; deducted per action; overage billing via Stripe |
+| Dollar balance system | Per-user monthly AI spend balance; actual cost deducted per action; retrospective cost shown; top-up via Stripe |
 | Agent scheduling system | Per-business, per-department schedules; Celery Beat dispatcher |
 | Approval queue | Pending actions stored in DB; user approves/rejects from dashboard |
 | Chat widget (embeddable) | JavaScript snippet users embed on their site; connects to Sales/CS agents |
@@ -229,7 +246,7 @@ V1 is production-ready when:
 
 - [ ] All V1 departments are functional and have been used by at least 10 real users in beta
 - [ ] Stripe billing is live and tested (subscribe, pay, cancel, overage charge)
-- [ ] Credit tracking correctly reflects all agent actions
+- [ ] Dollar balance correctly reflects all agent actions (deductions visible retroactively per task)
 - [ ] Coach scheduling flow works end-to-end (book → briefing generated → session held → notes captured)
 - [ ] Living Business Document updates correctly across at least 3 different trigger types
 - [ ] Website builder produces usable sites and publishes to live subdomain

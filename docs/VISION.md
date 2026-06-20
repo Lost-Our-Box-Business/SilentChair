@@ -133,46 +133,41 @@ The distinction at Starter is practical — video coaching at the lowest tier wo
 
 ## Subscription Model
 
-SilentChair uses a **credit-based subscription**. Credits are a clear, predictable unit of "work" that map directly to agent actions. Users always know what something will cost before it happens.
+SilentChair uses a **dollar balance model**. Each subscription tier includes a monthly AI spend allowance — a real dollar amount that decreases as agents do work. Users can see exactly what each task cost them after it completes. This keeps the system honest: as AI models change or improve, pricing reflects actual cost rather than arbitrary credit conversions.
 
-### Credit Costs (Approximate — calibrated during beta)
+### How It Works
 
-| Action | Credits |
-|---|---|
-| Social media post (draft + publish) | 1 |
-| Blog post (research + write + publish) | 5 |
-| Email campaign (design + send to list) | 3 |
-| Ad creative set (copy + image + setup) | 6 |
-| Outreach sequence (research + write + send) | 5 |
-| Inbound call handled (per call) | 4 |
-| Outbound call made (per call) | 4 |
-| Financial report or budget review | 2 |
-| Strategic review or business advice session | 2 |
-| Image generation (per image) | 1 |
-| Video generation (per video, short) | 10 |
+- Each subscription tier includes a monthly AI spend balance (e.g., $30/month of AI spend included in Starter)
+- Every agent action deducts its actual cost — with a platform markup — from the balance
+- After each task completes, the user sees what it cost (retrospective transparency)
+- Future: show estimated cost before approving an action
+- When the balance runs low, the user tops up in dollar blocks (no abstraction, no conversion)
+- There is no limit on the number of businesses. Users can run as many businesses as they like — more businesses just consume more of their AI spend balance
 
 ### Tiers
 
-| Tier | Price | Credits/mo | Businesses | Coaching |
-|---|---|---|---|---|
-| Starter | $99/mo | 500 | 1 | 1 async/mo |
-| Growth | $249/mo | 2,000 | 3 | 1 video/mo |
-| Scale | $599/mo | 10,000 | Unlimited | 2 video/mo |
-| Enterprise | Custom | Unlimited | Unlimited | Custom |
+| Tier | Subscription | Included AI Spend | Coaching |
+|---|---|---|---|
+| Starter | $99/mo | $30/mo AI spend | 1 async/mo |
+| Growth | $249/mo | $100/mo AI spend | 1 video/mo |
+| Scale | $599/mo | $300/mo AI spend | 2 video/mo |
+| Enterprise | Custom | Custom | Custom |
 
-**Additional credits:** $9 for 100 / $40 for 500 / $70 for 1,000
+**AI spend top-ups:** Available in any amount ($10 minimum). Unused balance rolls over for 60 days.
 
 **Notes:**
-- All plans include all departments (no feature gating by tier, only volume)
-- The credit system is designed to be transparent: users see the cost before approving any action
+- All plans include all departments and unlimited businesses — tier differences are AI spend budget and coaching volume only
+- Platform markup on AI costs covers infrastructure, support, and platform development — exact margins to be set before launch
 - Pricing should be validated with a financial model before public launch — the above is a starting point
-- A 14-day free trial (no credit card required) is recommended for new users
+- A 14-day free trial with $5 in AI spend included, no credit card required
 
 ---
 
 ## Language and Internationalization
 
-SilentChair detects the user's system language on first use and operates in it by default — the UI, agent conversations, and all generated content. Users can change their language from a single setting on their profile.
+SilentChair detects the user's system language on first use and operates in it by default — the UI, agent conversations, and all generated content.
+
+A **language selector button is always visible in the navigation bar on every page** — no need to go to settings. One click changes the language immediately for the entire platform. The setting is also available in the user profile for discoverability.
 
 AI agents are capable of operating in any language the underlying models support. Region-appropriate content (ad targeting, social platforms, business norms) is factored in by agents when the business context indicates a specific geography.
 

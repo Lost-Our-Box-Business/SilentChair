@@ -45,35 +45,51 @@ Transform the static `businesses.profile` JSON into a dynamic, versioned, agent-
 - Build the user-facing simplified summary view on the Business Dashboard
 - Build the "correct this" flow: user tells AI something is wrong → agent updates the document → summary refreshes
 
-### 1.2 Credit System
+### 1.2 Dollar Balance System
 
-Full credit ledger powering all agent actions.
+Per-user AI spend balance powering all agent actions.
 
-- `credit_ledger` table (user_id, amount, type: subscription/purchase/debit, action_ref, created_at)
-- Monthly credit reset on subscription renewal (via Stripe webhook)
-- Credit cost defined per action type in a config (start with estimates; calibrate during beta)
-- Credits checked before every agent action; action blocked if insufficient
-- Dashboard widget: credits remaining, spend by department, projected month-end
+- `spend_ledger` table (user_id, amount, type: subscription_grant/top_up/debit, action_ref, actual_cost, created_at)
+- Monthly balance grant on subscription renewal (via Stripe webhook)
+- Actual AI cost tracked per action; platform markup applied at debit time
+- Balance checked before every agent action; action blocked if insufficient
+- After each task completes, cost written to the task record and visible on the Task Board
+- Dashboard widget: balance remaining this month, spend by department, per-task cost history
 
-### 1.3 Stripe Billing
+### 1.3 Task Board
 
-- Products and prices set up in Stripe dashboard (4 tiers + credit block products)
+Sprint-board UI for the user to see all their AI tasks across departments.
+
+- `tasks` table already exists (scaffolded) — activate it: add `department`, `cost`, `label_color`, `created_by` (user or agent) columns
+- Kanban board page at `/dashboard/business/{id}/tasks` with four columns: Planned, In Progress, Blocked by User, Completed
+- Department filter (chips/tabs at top of board)
+- Color-coded label per department; secondary label for task type (content, outreach, report, etc.)
+- Task card shows: title, department, status, cost (once completed), age
+- Task detail drawer: full output, timestamps, cost breakdown, approve/reject button (for Blocked by User items)
+- User-created tasks: "Add Task" button → free-text form → user selects department; agent interprets and queues
+- Notification toggle (per business): on/off for push/email when task lands in Blocked by User. Stored in `businesses` table as `notify_blocked`. Default: on.
+- Wire up existing approval queue logic to the Blocked by User column
+
+### 1.4 Stripe Billing
+
+- Products and prices set up in Stripe dashboard (4 tiers + AI spend top-up products)
 - Checkout flow: new user selects plan, enters payment, subscription created
 - Stripe webhooks: `subscription.created`, `subscription.updated`, `subscription.deleted`, `payment_failed`
-- Billing settings page: current plan, usage, upgrade/downgrade, cancel, purchase additional credits
-- 14-day free trial with 100 starter credits (no card required at signup)
+- Billing settings page: current plan, AI spend balance, per-task cost history, upgrade/downgrade, cancel, top up
+- 14-day free trial with $5 AI spend included (no card required at signup)
 - Failed payment grace period (3 days) → agent actions paused → account suspended
 
-### 1.4 Language / i18n
+### 1.5 Language / i18n
 
 - Install and configure `next-intl`
 - Externalize all UI strings into locale files
 - Language auto-detection on first load (from browser `Accept-Language` header)
-- Language selector in user profile settings
+- **Language selector button always visible in the navbar** (every page); also available in profile settings
+- Changing language takes effect immediately across the whole platform
 - Launch with: English, Spanish, French, Portuguese, German
 - AI agent responses: pass the user's language preference in every system prompt
 
-### 1.5 Agent Architecture Refactor
+### 1.6 Agent Architecture Refactor
 
 Move from a single content pipeline to a modular per-department agent system that all departments can use.
 
@@ -184,11 +200,11 @@ Current content pipeline becomes the Marketing agent proper:
 - Collect: where do users get confused? What actions fail? What's missing?
 - Weekly feedback sessions; rapid iteration
 
-### 4.2 Credit Calibration
+### 4.2 Dollar Balance Calibration
 
 - Measure actual AI token spend per action type during beta
-- Adjust credit costs so platform margins are positive at each tier
-- Confirm platform can sustain free trial economics (14 days × 100 credits per new user)
+- Confirm platform markup at each tier keeps margins positive as model costs change
+- Confirm platform can sustain free trial economics ($5 included spend per new trial user)
 
 ### 4.3 Scale Testing
 
@@ -220,7 +236,7 @@ Current content pipeline becomes the Marketing agent proper:
 
 - [ ] All V1 departments working and tested by real beta users
 - [ ] Stripe billing live and verified
-- [ ] Credit system accurate and visible to users
+- [ ] Dollar balance system accurate; per-task cost visible to users retrospectively
 - [ ] Coach scheduling working end-to-end
 - [ ] Living Business Document updating correctly
 - [ ] Language support: 5 languages live
@@ -257,6 +273,6 @@ First expansion after a stable public launch:
 ## Ongoing / Always
 
 - Weekly: review activity logs for errors, agent failures, user friction
-- Monthly: credit calibration check (are margins correct?)
+- Monthly: dollar balance calibration check (are platform margins correct as AI model costs shift?)
 - Monthly: coach capacity review (enough coaches for subscriber count?)
 - Quarterly: living roadmap review against user feedback and business goals
