@@ -76,7 +76,7 @@ export function BusinessOverviewCard({ businessId }: Props) {
         <div className="flex items-center gap-2">
           <Input
             className="h-8 text-xs"
-            placeholder="Something wrong? Tell us (e.g. "we also sell B2B")"
+            placeholder={`Something wrong? Tell us (e.g. "we also sell B2B")`}
             value={correction}
             onChange={(e) => setCorrection(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleCorrect(); }}
