@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import interview, departments, activity, crm, usage, website
+from app.routers import interview, departments, activity, crm, usage, website, living_doc
 
 app = FastAPI(title="SilentChair API", version="0.1.0")
 
@@ -26,6 +26,7 @@ app.include_router(activity.router, prefix="/api")
 app.include_router(crm.router, prefix="/api")
 app.include_router(usage.router, prefix="/api")
 app.include_router(website.router, prefix="/api")
+app.include_router(living_doc.router, prefix="/api")
 
 
 @app.get("/health")

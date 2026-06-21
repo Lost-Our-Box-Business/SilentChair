@@ -17,6 +17,7 @@ import {
   type ActivityEntry, type PipelineRunResult, type Lead, type Contract, type Invoice,
 } from "@/lib/activity-api";
 import { getBudgetState, type BudgetState } from "@/lib/usage-api";
+import { BusinessOverviewCard } from "@/components/dashboard/BusinessOverviewCard";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -139,6 +140,8 @@ export default function BusinessDetailPage() {
 
   return (
     <div className="space-y-6">
+      <BusinessOverviewCard businessId={businessId} />
+
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>

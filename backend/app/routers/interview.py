@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException
 from app.models.interview import InterviewRequest, InterviewResponse
 from app.agents.business_analyst import run_interview_turn
 from app.db.client import get_supabase
+from app.services import living_doc
 
 router = APIRouter(prefix="/interview", tags=["interview"])
 
@@ -30,6 +31,10 @@ async def interview_turn(req: InterviewRequest):
                 "name": result["business_profile"].get("name", "Untitled Business"),
                 "status": "onboarding",
             }).execute()
+            try:
+                living_doc.initialize_from_profile(session_id, result["business_profile"])
+            except Exception:
+                pass  # Living doc init is non-critical; business row already saved
         except Exception:
             pass
 
