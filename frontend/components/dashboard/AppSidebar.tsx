@@ -22,7 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LayoutDashboard, Building2, Users, ListTodo, BarChart3, Settings, ChevronsUpDown, LogOut, Plus, Globe } from "lucide-react";
+import { LayoutDashboard, Building2, Users, ListTodo, BarChart3, Settings, ChevronsUpDown, LogOut, Plus, Globe, KanbanSquare, UserRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
@@ -93,11 +93,29 @@ export function AppSidebar({ userEmail, businesses = [] }: AppSidebarProps) {
                   <SidebarMenuSub>
                     <SidebarMenuSubItem>
                       <SidebarMenuSubButton
+                        isActive={pathname === `/dashboard/business/${biz.id}/tasks`}
+                        onClick={() => router.push(`/dashboard/business/${biz.id}/tasks`)}
+                      >
+                        <KanbanSquare className="h-3.5 w-3.5" />
+                        <span>Tasks</span>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton
                         isActive={pathname === `/dashboard/business/${biz.id}/website`}
                         onClick={() => router.push(`/dashboard/business/${biz.id}/website`)}
                       >
                         <Globe className="h-3.5 w-3.5" />
                         <span>Website</span>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton
+                        isActive={pathname === `/dashboard/business/${biz.id}/coach`}
+                        onClick={() => router.push(`/dashboard/business/${biz.id}/coach`)}
+                      >
+                        <UserRound className="h-3.5 w-3.5" />
+                        <span>Coach</span>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
                   </SidebarMenuSub>
