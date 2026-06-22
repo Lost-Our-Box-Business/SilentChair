@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { locales, defaultLocale } from "./i18n/config";
 
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "silentchair.app";
 
@@ -50,6 +51,14 @@ export async function proxy(request: NextRequest) {
 
   if (isAuthPage && user) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
+  // Auto-set locale cookie from Accept-Language on first visit
+  if (!request.cookies.get("locale")) {
+    const accepted = request.headers.get("accept-language") ?? "";
+    const preferred = accepted.split(",")[0].split("-")[0].toLowerCase();
+    const locale = locales.includes(preferred as (typeof locales)[number]) ? preferred : defaultLocale;
+    supabaseResponse.cookies.set("locale", locale, { path: "/", maxAge: 60 * 60 * 24 * 365 });
   }
 
   return supabaseResponse;
