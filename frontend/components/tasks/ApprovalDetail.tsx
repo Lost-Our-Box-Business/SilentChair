@@ -65,9 +65,9 @@ function LeadRow({ lead }: { lead: Record<string, unknown> }) {
       <User className="h-3 w-3 text-muted-foreground shrink-0" />
       <div className="min-w-0">
         <span className="font-medium">{String(lead.name ?? "")}</span>
-        {lead.company && <span className="text-muted-foreground"> · {String(lead.company)}</span>}
-        {lead.email && <span className="text-muted-foreground block truncate">{String(lead.email)}</span>}
-        {lead.qualification_reason && (
+        {Boolean(lead.company) && <span className="text-muted-foreground"> · {String(lead.company)}</span>}
+        {Boolean(lead.email) && <span className="text-muted-foreground block truncate">{String(lead.email)}</span>}
+        {Boolean(lead.qualification_reason) && (
           <span className="text-muted-foreground block">{String(lead.qualification_reason)}</span>
         )}
       </div>
