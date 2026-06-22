@@ -1,50 +1,53 @@
 import Link from "next/link";
 import { User, CreditCard, Bell, Link2, BarChart3 } from "lucide-react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getTranslations } from "next-intl/server";
 
-const sections = [
-  {
-    href: "/dashboard/settings/profile",
-    icon: User,
-    title: "Profile",
-    description: "Name, language preference, and timezone.",
-  },
-  {
-    href: "/dashboard/settings/billing",
-    icon: CreditCard,
-    title: "Billing",
-    description: "Subscription plan, AI spend balance, and top-ups.",
-    badge: "Phase 5",
-  },
-  {
-    href: "/dashboard/settings/notifications",
-    icon: Bell,
-    title: "Notifications",
-    description: "Control when and how you're alerted for approvals.",
-    badge: "Phase 8",
-  },
-  {
-    href: "/dashboard/settings/connected-accounts",
-    icon: Link2,
-    title: "Connected Accounts",
-    description: "OAuth connections for social and ad platforms.",
-    badge: "Phase 8",
-  },
-  {
-    href: "/dashboard/analytics",
-    icon: BarChart3,
-    title: "Analytics",
-    description: "Aggregated performance across all businesses.",
-    badge: "Post-V1",
-  },
-];
+export default async function SettingsPage() {
+  const t = await getTranslations("settings");
 
-export default function SettingsPage() {
+  const sections = [
+    {
+      href: "/dashboard/settings/profile",
+      icon: User,
+      title: t("profile"),
+      description: t("profileDesc"),
+    },
+    {
+      href: "/dashboard/settings/billing",
+      icon: CreditCard,
+      title: t("billing"),
+      description: t("billingDesc"),
+      badge: "Phase 5",
+    },
+    {
+      href: "/dashboard/settings/notifications",
+      icon: Bell,
+      title: t("notifications"),
+      description: t("notificationsDesc"),
+      badge: "Phase 8",
+    },
+    {
+      href: "/dashboard/settings/connected-accounts",
+      icon: Link2,
+      title: t("connectedAccounts"),
+      description: t("connectedAccountsDesc"),
+      badge: "Phase 8",
+    },
+    {
+      href: "/dashboard/analytics",
+      icon: BarChart3,
+      title: t("analytics"),
+      description: t("analyticsDesc"),
+      badge: "Post-V1",
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Settings</h1>
-        <p className="text-sm text-muted-foreground">Account, billing, and notification preferences</p>
+        <h1 className="text-xl font-semibold">{t("title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {sections.map(({ href, icon: Icon, title, description, badge }) => (

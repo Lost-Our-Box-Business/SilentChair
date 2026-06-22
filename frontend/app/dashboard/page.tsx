@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Building2, Users, Bell, Plus, ArrowRight } from "lucide-react";
+import { getTranslations, getLocale } from "next-intl/server";
 
 async function getBusinesses(userId: string) {
   const supabase = await createClient();
@@ -54,20 +55,19 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   const businesses = user ? await getBusinesses(user.id) : [];
   const stats = user ? await getDashboardStats(user.id) : { agents: 0, pendingApprovals: 0 };
+  const t = await getTranslations("dashboard");
+  const locale = await getLocale();
 
   if (businesses.length === 0) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center">
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold">Welcome to SilentChair</h1>
-          <p className="text-muted-foreground max-w-md">
-            You don&apos;t have any businesses yet. Start by describing the business you want to build
-            and we&apos;ll set up your AI workforce.
-          </p>
+          <h1 className="text-2xl font-bold">{t("welcome")}</h1>
+          <p className="text-muted-foreground max-w-md">{t("welcomeSubtitle")}</p>
         </div>
         <Button size="lg" render={<Link href="/onboarding" />} nativeButton={false}>
           <Plus className="mr-2 h-4 w-4" />
-          Create your first business
+          {t("createFirstBusiness")}
         </Button>
       </div>
     );
@@ -77,12 +77,12 @@ export default async function DashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Your AI businesses at a glance</p>
+          <h1 className="text-xl font-semibold">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
         </div>
         <Button size="sm" render={<Link href="/onboarding" />} nativeButton={false}>
           <Plus className="mr-1.5 h-3.5 w-3.5" />
-          New Business
+          {t("newBusiness")}
         </Button>
       </div>
 
@@ -90,7 +90,7 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-1.5 text-xs">
-              <Building2 className="h-3.5 w-3.5" /> Businesses
+              <Building2 className="h-3.5 w-3.5" /> {t("businesses")}
             </CardDescription>
             <CardTitle className="text-2xl">{businesses.length}</CardTitle>
           </CardHeader>
@@ -98,7 +98,7 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-1.5 text-xs">
-              <Users className="h-3.5 w-3.5" /> Active Agents
+              <Users className="h-3.5 w-3.5" /> {t("activeAgents")}
             </CardDescription>
             <CardTitle className="text-2xl">{stats.agents}</CardTitle>
           </CardHeader>
@@ -106,7 +106,7 @@ export default async function DashboardPage() {
         <Card className={stats.pendingApprovals > 0 ? "border-yellow-500/50" : ""}>
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-1.5 text-xs">
-              <Bell className="h-3.5 w-3.5" /> Pending Approvals
+              <Bell className="h-3.5 w-3.5" /> {t("pendingApprovals")}
             </CardDescription>
             <CardTitle className={`text-2xl ${stats.pendingApprovals > 0 ? "text-yellow-600" : ""}`}>
               {stats.pendingApprovals}
@@ -116,7 +116,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="space-y-3">
-        <h2 className="text-sm font-medium">Your Businesses</h2>
+        <h2 className="text-sm font-medium">{t("yourBusinesses")}</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {businesses.map((biz) => (
             <Card key={biz.id} className="group hover:border-primary/50 transition-colors">
@@ -128,7 +128,7 @@ export default async function DashboardPage() {
                   </Badge>
                 </div>
                 <CardDescription className="text-xs">
-                  Created {new Date(biz.created_at).toLocaleDateString()}
+                  {new Date(biz.created_at).toLocaleDateString(locale)}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -139,7 +139,7 @@ export default async function DashboardPage() {
                   render={<Link href={`/dashboard/business/${biz.id}`} />}
                   nativeButton={false}
                 >
-                  View business
+                  {t("viewBusiness")}
                   <ArrowRight className="h-3.5 w-3.5" />
                 </Button>
               </CardContent>

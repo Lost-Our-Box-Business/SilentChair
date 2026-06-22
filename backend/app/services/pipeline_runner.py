@@ -75,10 +75,21 @@ def to_summary(result: dict, archetype: str) -> dict:
     return base
 
 
+LANGUAGE_NAMES = {
+    "en": "English",
+    "es": "Spanish",
+    "fr": "French",
+    "pt": "Portuguese",
+    "de": "German",
+    "zh": "Simplified Chinese",
+}
+
+
 def execute(
     business_id: str,
     task_ids: list[str] | None = None,
     create_summary_task: bool = True,
+    locale: str | None = None,
 ) -> dict:
     """
     Run the pipeline for a business.
@@ -87,12 +98,23 @@ def execute(
               agent-assigned tasks for the business are loaded automatically.
     create_summary_task: whether to create an auto pipeline-summary task card.
                          Set False when triggered by a specific user task.
+    locale: BCP 47 language code (e.g. 'es') — if provided, injects a language
+            instruction into business_profile so LLM nodes generate content in
+            that language.
     """
     from app.services.cost_tracker import get_budget_state
     from app.services import tasks_sync
 
     ctx = load_business_context(business_id)
     db = get_supabase()
+
+    # Inject language instruction into business_profile
+    if locale and locale in LANGUAGE_NAMES:
+        lang_name = LANGUAGE_NAMES[locale]
+        ctx["business_profile"]["language_instruction"] = (
+            f"[IMPORTANT: Write ALL generated content — emails, articles, summaries, "
+            f"lead notes, and any other text — in {lang_name}.]"
+        )
 
     # Pre-flight budget check
     budget = get_budget_state(business_id)

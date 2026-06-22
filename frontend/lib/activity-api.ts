@@ -60,8 +60,9 @@ export async function approveActivity(activityId: string): Promise<ActivityEntry
   return apiFetch<ActivityEntry>(`/api/activity/${activityId}/approve`, { method: "POST" });
 }
 
-export async function runPipeline(businessId: string): Promise<PipelineRunResult> {
-  return apiFetch<PipelineRunResult>(`/api/pipeline/run/${businessId}`, { method: "POST" });
+export async function runPipeline(businessId: string, locale?: string): Promise<PipelineRunResult> {
+  const qs = locale ? `?locale=${locale}` : "";
+  return apiFetch<PipelineRunResult>(`/api/pipeline/run/${businessId}${qs}`, { method: "POST" });
 }
 
 // ── CRM ──────────────────────────────────────────────────────────────────────

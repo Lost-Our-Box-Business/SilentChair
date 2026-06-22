@@ -24,15 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LayoutDashboard, Building2, Users, ListTodo, BarChart3, Settings, ChevronsUpDown, LogOut, Plus, Globe, KanbanSquare, UserRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-
-const navItems = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/dashboard/business", label: "Business", icon: Building2 },
-  { href: "/dashboard/agents", label: "Agents", icon: Users },
-  { href: "/dashboard/tasks", label: "Tasks", icon: ListTodo },
-  { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
-];
+import { useTranslations } from "next-intl";
 
 interface AppSidebarProps {
   userEmail?: string;
@@ -40,9 +32,19 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ userEmail, businesses = [] }: AppSidebarProps) {
+  const t = useTranslations("sidebar");
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+
+  const navItems = [
+    { href: "/dashboard", label: t("overview"), icon: LayoutDashboard },
+    { href: "/dashboard/business", label: t("business"), icon: Building2 },
+    { href: "/dashboard/agents", label: t("agents"), icon: Users },
+    { href: "/dashboard/tasks", label: t("tasks"), icon: ListTodo },
+    { href: "/dashboard/analytics", label: t("analytics"), icon: BarChart3 },
+    { href: "/dashboard/settings", label: t("settings"), icon: Settings },
+  ];
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -64,7 +66,7 @@ export function AppSidebar({ userEmail, businesses = [] }: AppSidebarProps) {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("workspace")}</SidebarGroupLabel>
           <SidebarMenu>
             {navItems.map(({ href, label, icon: Icon }) => (
               <SidebarMenuItem key={href}>
@@ -78,7 +80,7 @@ export function AppSidebar({ userEmail, businesses = [] }: AppSidebarProps) {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Businesses</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("businesses")}</SidebarGroupLabel>
           <SidebarMenu>
             {businesses.map((biz) => (
               <SidebarMenuItem key={biz.id}>
@@ -97,7 +99,7 @@ export function AppSidebar({ userEmail, businesses = [] }: AppSidebarProps) {
                         onClick={() => router.push(`/dashboard/business/${biz.id}/tasks`)}
                       >
                         <KanbanSquare className="h-3.5 w-3.5" />
-                        <span>Tasks</span>
+                        <span>{t("subTasks")}</span>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
                     <SidebarMenuSubItem>
@@ -106,7 +108,7 @@ export function AppSidebar({ userEmail, businesses = [] }: AppSidebarProps) {
                         onClick={() => router.push(`/dashboard/business/${biz.id}/website`)}
                       >
                         <Globe className="h-3.5 w-3.5" />
-                        <span>Website</span>
+                        <span>{t("subWebsite")}</span>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
                     <SidebarMenuSubItem>
@@ -115,7 +117,7 @@ export function AppSidebar({ userEmail, businesses = [] }: AppSidebarProps) {
                         onClick={() => router.push(`/dashboard/business/${biz.id}/coach`)}
                       >
                         <UserRound className="h-3.5 w-3.5" />
-                        <span>Coach</span>
+                        <span>{t("subCoach")}</span>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
                   </SidebarMenuSub>
@@ -125,7 +127,7 @@ export function AppSidebar({ userEmail, businesses = [] }: AppSidebarProps) {
             <SidebarMenuItem>
               <SidebarMenuButton onClick={() => router.push("/onboarding")}>
                 <Plus className="h-4 w-4" />
-                <span>New Business</span>
+                <span>{t("newBusiness")}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -144,7 +146,7 @@ export function AppSidebar({ userEmail, businesses = [] }: AppSidebarProps) {
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem onClick={handleSignOut} className="text-xs">
               <LogOut className="mr-2 h-3 w-3" />
-              Sign out
+              {t("signOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { defaultLocale, locales } from "@/i18n/config";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -26,8 +27,14 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { error, data } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      const savedLang = data.user?.user_metadata?.language;
+      if (savedLang && locales.includes(savedLang as (typeof locales)[number])) {
+        response.cookies.set("locale", savedLang, { path: "/", maxAge: 60 * 60 * 24 * 365 });
+      } else if (!request.cookies.get("locale")) {
+        response.cookies.set("locale", defaultLocale, { path: "/", maxAge: 60 * 60 * 24 * 365 });
+      }
       return response;
     }
   }

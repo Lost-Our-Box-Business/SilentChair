@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { Separator } from "@/components/ui/separator";
+import { LanguageSelector } from "@/components/dashboard/LanguageSelector";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -25,6 +26,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="h-4" />
           <span className="text-sm text-muted-foreground">SilentChair</span>
+          <div className="ml-auto">
+            <LanguageSelector />
+          </div>
         </header>
         <main className="flex flex-1 flex-col p-6">{children}</main>
       </SidebarInset>

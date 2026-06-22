@@ -90,7 +90,7 @@ def update_task_status(task_id: str, req: UpdateTaskStatusRequest):
 
 
 @router.post("/{task_id}/run")
-def run_task(task_id: str):
+def run_task(task_id: str, locale: str | None = None):
     """Trigger the pipeline immediately for a specific planned agent task."""
     db = get_supabase()
     task_result = db.table("tasks").select("*").eq("id", task_id).execute()
@@ -108,6 +108,7 @@ def run_task(task_id: str):
             task["business_id"],
             task_ids=[task_id],
             create_summary_task=False,
+            locale=locale,
         )
     except pipeline_runner.BudgetExhaustedError as e:
         raise HTTPException(status_code=402, detail=str(e))

@@ -45,14 +45,14 @@ async def approve(activity_id: str):
 
 
 @router.post("/pipeline/run/{business_id}")
-async def run_pipeline(business_id: str):
+async def run_pipeline(business_id: str, locale: str | None = None):
     try:
         load_business_context(business_id)  # validate business exists
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
     try:
-        return pipeline_runner.execute(business_id)
+        return pipeline_runner.execute(business_id, locale=locale)
     except pipeline_runner.BudgetExhaustedError as e:
         raise HTTPException(status_code=402, detail=str(e))
     except Exception as e:

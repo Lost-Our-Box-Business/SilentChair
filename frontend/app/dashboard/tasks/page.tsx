@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { TaskBoard } from "@/components/tasks/TaskBoard";
 import { getGlobalTasks, approveTask, rejectTask, type Task } from "@/lib/tasks-api";
 import { createClient } from "@/lib/supabase/client";
 
 export default function GlobalTasksPage() {
+  const t = useTranslations("tasksPage");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
@@ -66,8 +68,8 @@ export default function GlobalTasksPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold">Tasks</h1>
-          <p className="text-sm text-muted-foreground">All pipeline work across your businesses</p>
+          <h1 className="text-xl font-semibold">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
         </div>
         {businesses.length > 1 && (
           <select
@@ -75,7 +77,7 @@ export default function GlobalTasksPage() {
             onChange={(e) => setBizFilter(e.target.value)}
             className="h-8 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
-            <option value="all">All businesses</option>
+            <option value="all">{t("allBusinesses")}</option>
             {businesses.map(([id, name]) => (
               <option key={id} value={id}>{name}</option>
             ))}

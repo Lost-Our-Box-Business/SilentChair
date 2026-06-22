@@ -1,12 +1,13 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
+
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "silentchair.app";
 
 const nextConfig: NextConfig = {
   async rewrites() {
     return [
-      // Rewrite *.silentchair.app/* → /site/[subdomain]/* for non-Vercel environments
-      // (Vercel handles this via middleware; this covers local dev with custom hosts)
       {
         source: "/:path*",
         has: [
@@ -21,4 +22,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

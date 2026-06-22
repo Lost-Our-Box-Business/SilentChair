@@ -111,8 +111,9 @@ export async function deleteTask(taskId: string): Promise<void> {
   await fetch(`${API_URL}/api/tasks/${taskId}`, { method: "DELETE" });
 }
 
-export async function runTask(taskId: string): Promise<Record<string, unknown>> {
-  const res = await fetch(`${API_URL}/api/tasks/${taskId}/run`, { method: "POST" });
+export async function runTask(taskId: string, locale?: string): Promise<Record<string, unknown>> {
+  const qs = locale ? `?locale=${locale}` : "";
+  const res = await fetch(`${API_URL}/api/tasks/${taskId}/run${qs}`, { method: "POST" });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Pipeline error" }));
     throw new Error(err.detail ?? "Pipeline error");

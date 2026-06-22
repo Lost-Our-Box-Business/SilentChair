@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Mail, User, FileText, ChevronDown, ChevronRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { getActivityEntry, type ActivityDetail } from "@/lib/activity-api";
 
 interface Props {
@@ -79,6 +80,8 @@ function LeadRow({ lead }: { lead: Record<string, unknown> }) {
 }
 
 export function ApprovalDetail({ activityLogId }: Props) {
+  const t = useTranslations("taskBoard");
+  const tDetail = useTranslations("approvalDetail");
   const [detail, setDetail] = useState<ActivityDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -93,13 +96,13 @@ export function ApprovalDetail({ activityLogId }: Props) {
   if (loading) {
     return (
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground py-1">
-        <Loader2 className="h-3 w-3 animate-spin" /> Loading work…
+        <Loader2 className="h-3 w-3 animate-spin" /> {tDetail("loading")}
       </div>
     );
   }
 
   if (error || !detail) {
-    return <p className="text-xs text-muted-foreground italic">Could not load work details.</p>;
+    return <p className="text-xs text-muted-foreground italic">{tDetail("couldNotLoad")}</p>;
   }
 
   const emails = detail.outreach_emails ?? [];
@@ -107,7 +110,7 @@ export function ApprovalDetail({ activityLogId }: Props) {
   const leads = detail.qualified_leads ?? [];
 
   if (!emails.length && !articles.length && !leads.length) {
-    return <p className="text-xs text-muted-foreground italic">No detailed preview available.</p>;
+    return <p className="text-xs text-muted-foreground italic">{tDetail("noPreview")}</p>;
   }
 
   return (
@@ -115,7 +118,7 @@ export function ApprovalDetail({ activityLogId }: Props) {
       {emails.length > 0 && (
         <div className="space-y-1.5">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
-            <Mail className="h-3 w-3" /> {emails.length} email{emails.length !== 1 ? "s" : ""} to send
+            <Mail className="h-3 w-3" /> {t("emailsToSend", { count: emails.length })}
           </p>
           {emails.map((e, i) => <EmailPreview key={i} email={e} />)}
         </div>
@@ -123,7 +126,7 @@ export function ApprovalDetail({ activityLogId }: Props) {
       {articles.length > 0 && (
         <div className="space-y-1.5">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
-            <FileText className="h-3 w-3" /> {articles.length} article{articles.length !== 1 ? "s" : ""} to publish
+            <FileText className="h-3 w-3" /> {t("articlesToPublish", { count: articles.length })}
           </p>
           {articles.map((a, i) => <ArticlePreview key={i} article={a} />)}
         </div>
@@ -131,7 +134,7 @@ export function ApprovalDetail({ activityLogId }: Props) {
       {leads.length > 0 && (
         <div className="space-y-0 border border-border rounded-md overflow-hidden">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1 px-2 py-1.5 bg-muted/30">
-            <User className="h-3 w-3" /> {leads.length} qualified lead{leads.length !== 1 ? "s" : ""}
+            <User className="h-3 w-3" /> {t("qualifiedLeads", { count: leads.length })}
           </p>
           <div className="px-2 divide-y divide-border">
             {leads.map((l, i) => <LeadRow key={i} lead={l} />)}

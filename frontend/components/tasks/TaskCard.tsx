@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,6 +10,7 @@ import {
 } from "lucide-react";
 import { updateTask, runTask, setTaskStatus, type Task, type TaskStatus } from "@/lib/tasks-api";
 import { ApprovalDetail } from "./ApprovalDetail";
+import { useLocale } from "next-intl";
 
 interface Props {
   task: Task;
@@ -16,7 +18,7 @@ interface Props {
   onReject?: (id: string, reason: string) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
   onUpdated?: (updated: Task) => void;
-  onRan?: () => void;        // called after a successful Run Now so the page can refresh
+  onRan?: () => void;
   availableDepartments?: string[];
   businessName?: string;
 }
@@ -46,6 +48,9 @@ export function TaskCard({
   availableDepartments = [],
   businessName,
 }: Props) {
+  const t = useTranslations("taskBoard");
+  const locale = useLocale();
+
   const [expanded, setExpanded] = useState(task.status === "awaiting_approval");
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
@@ -77,15 +82,8 @@ export function TaskCard({
   const isUserTask = task.assigned_to === "user";
   const canEdit = task.created_by === "user";
 
-  // Status movement for user-assigned tasks
   const currentIdx = STATUS_FLOW.indexOf(task.status as TaskStatus);
   const nextStatus = currentIdx >= 0 && currentIdx < STATUS_FLOW.length - 1 ? STATUS_FLOW[currentIdx + 1] : null;
-
-  const STATUS_LABELS: Record<string, string> = {
-    planned: "Planned",
-    in_progress: "In Progress",
-    completed: "Complete",
-  };
 
   async function handleSave(e: React.MouseEvent) {
     e.stopPropagation();
@@ -118,7 +116,7 @@ export function TaskCard({
     setRunning(true);
     setRunError(null);
     try {
-      await runTask(task.id);
+      await runTask(task.id, locale);
       onRan?.();
     } catch (err) {
       setRunError(err instanceof Error ? err.message : "Pipeline error");
@@ -171,14 +169,13 @@ export function TaskCard({
     >
       <div className="p-3 space-y-2">
 
-        {/* ── Edit mode ────────────────────────────────────────────────── */}
         {editing ? (
           <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
             <Input
               className="h-8 text-sm"
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
-              placeholder="Task title"
+              placeholder={t("taskTitle")}
               autoFocus
             />
             <textarea
@@ -186,30 +183,29 @@ export function TaskCard({
               rows={3}
               value={editDesc}
               onChange={(e) => setEditDesc(e.target.value)}
-              placeholder="Description (optional)"
+              placeholder={t("descriptionOptional")}
             />
             <select
               value={editDept}
               onChange={(e) => setEditDept(e.target.value)}
               className="w-full h-8 rounded-md border border-input bg-background px-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
-              <option value="">No department</option>
+              <option value="">{t("noDepartment")}</option>
               {availableDepartments.map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
             <div className="flex gap-1.5 justify-end">
               <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={handleCancelEdit}>
-                Cancel
+                {t("cancel")}
               </Button>
               <Button size="sm" className="h-7 text-xs" onClick={handleSave} disabled={!editTitle.trim() || saving}>
                 {saving && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                Save
+                {t("save")}
               </Button>
             </div>
           </div>
 
         ) : (
           <>
-            {/* ── Top row ──────────────────────────────────────────────── */}
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 min-w-0">
                 {task.label_color && (
@@ -219,10 +215,10 @@ export function TaskCard({
                   <span className="text-[10px] text-muted-foreground truncate">{task.department}</span>
                 )}
                 {task.created_by === "user" && isUserTask && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 shrink-0">Mine</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 shrink-0">{t("mineLabel")}</span>
                 )}
                 {task.created_by === "user" && isAgentTask && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">Agent</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">{t("agentLabel")}</span>
                 )}
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
@@ -231,15 +227,12 @@ export function TaskCard({
               </div>
             </div>
 
-            {/* Business name (global view) */}
             {businessName && <p className="text-[10px] text-muted-foreground">{businessName}</p>}
 
-            {/* Title */}
             <p className={`font-medium leading-snug ${isFailed ? "text-red-600 dark:text-red-400" : ""}`}>
               {task.title}
             </p>
 
-            {/* ── Run Now (agent-assigned planned tasks only) ───────────── */}
             {isAgentTask && isPlanned && (
               <div onClick={(e) => e.stopPropagation()}>
                 <Button
@@ -250,8 +243,8 @@ export function TaskCard({
                   disabled={running}
                 >
                   {running
-                    ? <><Loader2 className="h-3 w-3 mr-1.5 animate-spin" />Running pipeline…</>
-                    : <><Play className="h-3 w-3 mr-1.5" />Run now</>
+                    ? <><Loader2 className="h-3 w-3 mr-1.5 animate-spin" />{t("runningPipeline")}</>
+                    : <><Play className="h-3 w-3 mr-1.5" />{t("runNow")}</>
                   }
                 </Button>
                 {runError && (
@@ -260,7 +253,6 @@ export function TaskCard({
               </div>
             )}
 
-            {/* ── User-assigned status movement ─────────────────────────── */}
             {isUserTask && (isPlanned || isInProgress) && nextStatus && (
               <div onClick={(e) => e.stopPropagation()}>
                 <Button
@@ -271,20 +263,19 @@ export function TaskCard({
                   disabled={!!movingTo}
                 >
                   {movingTo
-                    ? <><Loader2 className="h-3 w-3 mr-1.5 animate-spin" />Moving…</>
+                    ? <><Loader2 className="h-3 w-3 mr-1.5 animate-spin" />{t("moving")}</>
                     : nextStatus === "in_progress"
-                      ? <><ArrowRight className="h-3 w-3 mr-1.5" />Start working</>
-                      : <><SquareCheck className="h-3 w-3 mr-1.5" />Mark complete</>
+                      ? <><ArrowRight className="h-3 w-3 mr-1.5" />{t("startWorking")}</>
+                      : <><SquareCheck className="h-3 w-3 mr-1.5" />{t("markComplete")}</>
                   }
                 </Button>
               </div>
             )}
 
-            {/* ── Expanded: description + edit/delete ──────────────────── */}
             {expanded && (
               <div className="border-t pt-2 mt-1 space-y-2" onClick={(e) => e.stopPropagation()}>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  {task.description || <span className="italic">No description</span>}
+                  {task.description || <span className="italic">{t("noDescription")}</span>}
                 </p>
                 <div className="flex items-center gap-3">
                   {canEdit && !isCompleted && !isFailed && (
@@ -292,7 +283,7 @@ export function TaskCard({
                       onClick={(e) => { e.stopPropagation(); setEditing(true); setExpanded(false); }}
                       className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      <Pencil className="h-3 w-3" /> Edit
+                      <Pencil className="h-3 w-3" /> {t("edit")}
                     </button>
                   )}
                   {onDelete && (
@@ -302,38 +293,34 @@ export function TaskCard({
                       className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-red-600 transition-colors"
                     >
                       {deleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-                      Delete
+                      {t("delete")}
                     </button>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Cost on completed */}
             {isCompleted && task.cost_usd > 0 && (
               <p className="text-[10px] text-muted-foreground font-mono">{formatCost(task.cost_usd)}</p>
             )}
 
-            {/* Rejection reason */}
             {isFailed && task.output?.startsWith("Rejected:") && (
               <p className="text-[10px] text-muted-foreground italic">{task.output}</p>
             )}
 
-            {/* ── Work preview (Blocked by User) ───────────────────────── */}
             {isBlocked && !actionsBusy && task.activity_log_id && expanded && (
               <div className="border-t pt-2 mt-1">
                 <ApprovalDetail activityLogId={task.activity_log_id} />
               </div>
             )}
 
-            {/* ── Approve / Reject (Blocked by User column) ────────────── */}
             {isBlocked && !actionsBusy && (
               <div onClick={(e) => e.stopPropagation()}>
                 {rejectOpen ? (
                   <div className="space-y-1.5">
                     <Input
                       className="h-7 text-xs"
-                      placeholder="Reason for rejection"
+                      placeholder={t("reasonForRejection")}
                       value={rejectReason}
                       onChange={(e) => setRejectReason(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") handleReject(); if (e.key === "Escape") setRejectOpen(false); }}
@@ -343,11 +330,11 @@ export function TaskCard({
                       <Button size="sm" variant="destructive" className="h-7 text-xs flex-1"
                         onClick={handleReject} disabled={!rejectReason.trim() || rejecting}>
                         {rejecting && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                        Confirm reject
+                        {t("confirmReject")}
                       </Button>
                       <Button size="sm" variant="ghost" className="h-7 text-xs"
                         onClick={() => { setRejectOpen(false); setRejectReason(""); }}>
-                        Cancel
+                        {t("cancel")}
                       </Button>
                     </div>
                   </div>
@@ -357,12 +344,12 @@ export function TaskCard({
                       className="h-7 text-xs flex-1 border-amber-400 hover:bg-amber-500/10"
                       onClick={handleApprove} disabled={approving}>
                       {approving && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                      {approving ? "Approving…" : "Approve & send"}
+                      {approving ? t("approving") : t("approveAndSend")}
                     </Button>
                     <Button size="sm" variant="ghost"
                       className="h-7 text-xs text-muted-foreground hover:text-red-600 hover:bg-red-500/10"
                       onClick={() => setRejectOpen(true)}>
-                      Reject
+                      {t("reject")}
                     </Button>
                   </div>
                 )}
@@ -371,12 +358,12 @@ export function TaskCard({
 
             {approveDone && (
               <p className="text-[11px] text-green-600 flex items-center gap-1">
-                <CheckCircle2 className="h-3 w-3" /> Approved
+                <CheckCircle2 className="h-3 w-3" /> {t("approved")}
               </p>
             )}
             {rejectDone && (
               <p className="text-[11px] text-red-600 flex items-center gap-1">
-                <XCircle className="h-3 w-3" /> Rejected
+                <XCircle className="h-3 w-3" /> {t("rejected")}
               </p>
             )}
           </>

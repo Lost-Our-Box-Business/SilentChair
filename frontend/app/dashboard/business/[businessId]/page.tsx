@@ -16,6 +16,7 @@ import {
   updateLeadStatus, updateContractStatus, updateInvoiceStatus,
   type ActivityEntry, type PipelineRunResult, type Lead, type Contract, type Invoice,
 } from "@/lib/activity-api";
+import { useLocale } from "next-intl";
 import { getBudgetState, type BudgetState } from "@/lib/usage-api";
 import { BusinessOverviewCard } from "@/components/dashboard/BusinessOverviewCard";
 
@@ -74,6 +75,7 @@ function formatCost(n: number): string {
 export default function BusinessDetailPage() {
   const { businessId } = useParams<{ businessId: string }>();
   const router = useRouter();
+  const locale = useLocale();
   const [tab, setTab] = useState<Tab>("activity");
 
   const [feed, setFeed] = useState<ActivityEntry[]>([]);
@@ -113,7 +115,7 @@ export default function BusinessDetailPage() {
   async function handleRun() {
     setRunning(true); setRunResult(null); setRunError(null);
     try {
-      const result = await runPipeline(businessId);
+      const result = await runPipeline(businessId, locale);
       setRunResult(result);
       await loadAll();
     } catch (e: unknown) {
