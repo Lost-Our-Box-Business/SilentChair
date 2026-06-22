@@ -6,13 +6,12 @@ import { Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TaskBoard } from "@/components/tasks/TaskBoard";
-import { getTasks, createTask, approveTask, rejectTask, deleteTask, type Task } from "@/lib/tasks-api";
-
-const DEPARTMENTS = ["Marketing", "Lead Generation", "Client Acquisition", "Other"];
+import { getTasks, createTask, approveTask, rejectTask, deleteTask, getBusinessDepartments, type Task } from "@/lib/tasks-api";
 
 export default function BusinessTasksPage() {
   const { businessId } = useParams<{ businessId: string }>();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -23,8 +22,12 @@ export default function BusinessTasksPage() {
 
   const loadTasks = useCallback(async () => {
     try {
-      const data = await getTasks(businessId);
+      const [data, depts] = await Promise.all([
+        getTasks(businessId),
+        getBusinessDepartments(businessId),
+      ]);
       setTasks(data);
+      setDepartments(depts);
     } catch { /* silent */ } finally {
       setLoading(false);
     }
@@ -101,6 +104,7 @@ export default function BusinessTasksPage() {
           onDelete={handleDelete}
           onUpdated={handleUpdated}
           onAddTask={() => setDialogOpen(true)}
+          availableDepartments={departments}
         />
       )}
 
@@ -139,7 +143,7 @@ export default function BusinessTasksPage() {
                 className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="">Department (optional)</option>
-                {DEPARTMENTS.map((d) => (
+                {departments.map((d) => (
                   <option key={d} value={d}>{d}</option>
                 ))}
               </select>

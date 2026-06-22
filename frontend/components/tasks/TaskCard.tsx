@@ -6,14 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Loader2, CheckCircle2, XCircle, ChevronDown, Trash2, Pencil } from "lucide-react";
 import { updateTask, type Task } from "@/lib/tasks-api";
 
-const DEPARTMENTS = ["Marketing", "Lead Generation", "Client Acquisition", "Other"];
-
 interface Props {
   task: Task;
   onApprove?: (id: string) => Promise<void>;
   onReject?: (id: string, reason: string) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
   onUpdated?: (updated: Task) => void;
+  availableDepartments?: string[];
   businessName?: string;
 }
 
@@ -34,7 +33,7 @@ function formatCost(n: number): string {
   return `$${n.toFixed(4)}`;
 }
 
-export function TaskCard({ task, onApprove, onReject, onDelete, onUpdated, businessName }: Props) {
+export function TaskCard({ task, onApprove, onReject, onDelete, onUpdated, availableDepartments = [], businessName }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
@@ -136,7 +135,7 @@ export function TaskCard({ task, onApprove, onReject, onDelete, onUpdated, busin
               className="w-full h-8 rounded-md border border-input bg-background px-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="">No department</option>
-              {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
+              {availableDepartments.map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
             <div className="flex gap-1.5 justify-end">
               <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={handleCancelEdit}>

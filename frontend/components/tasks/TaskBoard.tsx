@@ -20,10 +20,11 @@ interface Props {
   onDelete?: (id: string) => Promise<void>;
   onUpdated?: (updated: Task) => void;
   onAddTask?: () => void;
+  availableDepartments?: string[];
   showBusiness?: boolean;
 }
 
-export function TaskBoard({ tasks, onApprove, onReject, onDelete, onUpdated, onAddTask, showBusiness = false }: Props) {
+export function TaskBoard({ tasks, onApprove, onReject, onDelete, onUpdated, onAddTask, availableDepartments, showBusiness = false }: Props) {
   const [selectedDept, setSelectedDept] = useState<string | null>(null);
 
   const departments = useMemo(() => {
@@ -93,6 +94,7 @@ export function TaskBoard({ tasks, onApprove, onReject, onDelete, onUpdated, onA
                     onReject={col.id === "awaiting_approval" ? onReject : undefined}
                     onDelete={onDelete}
                     onUpdated={onUpdated}
+                    availableDepartments={availableDepartments}
                     businessName={showBusiness ? task.businesses?.name : undefined}
                   />
                 ))

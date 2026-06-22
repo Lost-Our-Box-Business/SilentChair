@@ -1,4 +1,31 @@
 import { API_URL } from "./api";
+import { createClient } from "@/lib/supabase/client";
+
+const DEPT_LABELS: Record<string, string> = {
+  editorial: "Editorial",
+  seo: "SEO",
+  social_media: "Social Media",
+  distribution: "Distribution",
+  analytics: "Analytics",
+  market_research: "Market Research",
+  lead_research: "Lead Research",
+  lead_qualification: "Lead Qualification",
+  outreach: "Outreach",
+  lead_generation: "Lead Generation",
+  sales_outreach: "Sales Outreach",
+  proposals_contracts: "Proposals & Contracts",
+  billing: "Billing",
+};
+
+export async function getBusinessDepartments(businessId: string): Promise<string[]> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("departments")
+    .select("dept_type")
+    .eq("business_id", businessId)
+    .eq("is_active", true);
+  return (data ?? []).map((d: { dept_type: string }) => DEPT_LABELS[d.dept_type] ?? d.dept_type);
+}
 
 export type TaskStatus = "planned" | "in_progress" | "awaiting_approval" | "completed" | "failed";
 
