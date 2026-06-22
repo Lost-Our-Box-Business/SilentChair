@@ -6,7 +6,12 @@ import { Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TaskBoard } from "@/components/tasks/TaskBoard";
-import { getTasks, createTask, approveTask, rejectTask, deleteTask, getBusinessDepartments, type Task } from "@/lib/tasks-api";
+import {
+  getTasks, createTask, approveTask, rejectTask, deleteTask,
+  getBusinessDepartments, type Task,
+} from "@/lib/tasks-api";
+
+const DEPARTMENTS = ["Marketing", "Lead Generation", "Client Acquisition", "Other"];
 
 export default function BusinessTasksPage() {
   const { businessId } = useParams<{ businessId: string }>();
@@ -17,6 +22,7 @@ export default function BusinessTasksPage() {
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newDept, setNewDept] = useState("");
+  const [newAssignee, setNewAssignee] = useState<"agent" | "user">("agent");
   const [creating, setCreating] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
 
@@ -27,7 +33,7 @@ export default function BusinessTasksPage() {
         getBusinessDepartments(businessId),
       ]);
       setTasks(data);
-      setDepartments(depts);
+      setDepartments(depts.length > 0 ? depts : DEPARTMENTS);
     } catch { /* silent */ } finally {
       setLoading(false);
     }
@@ -66,11 +72,9 @@ export default function BusinessTasksPage() {
         title: newTitle.trim(),
         description: newDesc.trim() || undefined,
         department: newDept || undefined,
+        assigned_to: newAssignee,
       });
-      setDialogOpen(false);
-      setNewTitle("");
-      setNewDesc("");
-      setNewDept("");
+      closeDialog();
       await loadTasks();
     } finally {
       setCreating(false);
@@ -80,7 +84,9 @@ export default function BusinessTasksPage() {
   function closeDialog() {
     setDialogOpen(false);
     setNewTitle("");
+    setNewDesc("");
     setNewDept("");
+    setNewAssignee("agent");
   }
 
   return (
@@ -103,6 +109,7 @@ export default function BusinessTasksPage() {
           onReject={handleReject}
           onDelete={handleDelete}
           onUpdated={handleUpdated}
+          onRan={loadTasks}
           onAddTask={() => setDialogOpen(true)}
           availableDepartments={departments}
         />
@@ -147,6 +154,40 @@ export default function BusinessTasksPage() {
                   <option key={d} value={d}>{d}</option>
                 ))}
               </select>
+
+              {/* Assignee toggle */}
+              <div className="space-y-1.5">
+                <p className="text-xs text-muted-foreground">Assign to</p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewAssignee("agent")}
+                    className={`flex-1 h-8 rounded-md border text-xs font-medium transition-colors ${
+                      newAssignee === "agent"
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "border-input bg-background text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    Agent
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewAssignee("user")}
+                    className={`flex-1 h-8 rounded-md border text-xs font-medium transition-colors ${
+                      newAssignee === "user"
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "border-input bg-background text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    Me
+                  </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {newAssignee === "agent"
+                    ? "The agent picks this up when the pipeline runs (or you can run it now from the card)."
+                    : "You handle this task and move it through the columns manually."}
+                </p>
+              </div>
             </div>
 
             <div className="flex justify-end gap-2">

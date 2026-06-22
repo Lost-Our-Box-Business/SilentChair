@@ -1,10 +1,10 @@
-"""Task Board API — CRUD + approve for the tasks table."""
+"""Task Board API — CRUD + approve + run for the tasks table."""
 import traceback
 from fastapi import APIRouter, HTTPException, Response
 from app.db.client import get_supabase
 from app.models.tasks import CreateTaskRequest, UpdateTaskStatusRequest, RejectTaskRequest, UpdateTaskRequest
 from app.services.activity import approve_action, do_pipeline_resume
-from app.services import tasks_sync
+from app.services import tasks_sync, pipeline_runner
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -60,6 +60,7 @@ def create_task(business_id: str, req: CreateTaskRequest):
         "department": req.department,
         "status": "planned",
         "created_by": "user",
+        "assigned_to": req.assigned_to,
         "label_color": "#6b7280",
     }).execute()
     if not result.data:
@@ -86,6 +87,32 @@ def update_task_status(task_id: str, req: UpdateTaskStatusRequest):
     if not result.data:
         raise HTTPException(status_code=404, detail="Task not found")
     return result.data[0]
+
+
+@router.post("/{task_id}/run")
+def run_task(task_id: str):
+    """Trigger the pipeline immediately for a specific planned agent task."""
+    db = get_supabase()
+    task_result = db.table("tasks").select("*").eq("id", task_id).execute()
+    if not task_result.data:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    task = task_result.data[0]
+    if task.get("assigned_to") != "agent":
+        raise HTTPException(status_code=400, detail="Task is not assigned to an agent")
+    if task.get("status") != "planned":
+        raise HTTPException(status_code=400, detail="Task is not in planned state")
+
+    try:
+        return pipeline_runner.execute(
+            task["business_id"],
+            task_ids=[task_id],
+            create_summary_task=False,
+        )
+    except pipeline_runner.BudgetExhaustedError as e:
+        raise HTTPException(status_code=402, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Pipeline error: {e}")
 
 
 @router.post("/{task_id}/approve")

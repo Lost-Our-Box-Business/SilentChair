@@ -26,6 +26,7 @@ class CreateTaskRequest(BaseModel):
     title: str
     description: Optional[str] = None
     department: Optional[str] = None
+    assigned_to: str = "agent"  # 'agent' | 'user'
 
 
 class UpdateTaskStatusRequest(BaseModel):
@@ -40,3 +41,4 @@ class UpdateTaskRequest(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     department: Optional[str] = None
+    assigned_to: Optional[str] = None

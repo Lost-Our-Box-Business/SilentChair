@@ -93,6 +93,7 @@ export default function GlobalTasksPage() {
           onApprove={handleApprove}
           onReject={handleReject}
           onUpdated={handleUpdated}
+          onRan={reload}
           showBusiness={bizFilter === "all" && businesses.length > 1}
         />
       )}

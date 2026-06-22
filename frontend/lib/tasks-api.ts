@@ -42,6 +42,7 @@ export interface Task {
   cost_usd: number;
   label_color?: string;
   created_by: "agent" | "user";
+  assigned_to: "agent" | "user";
   approved_by?: string;
   activity_log_id?: string;
   created_at: string;
@@ -64,7 +65,7 @@ export async function getTasks(
 
 export async function createTask(
   businessId: string,
-  data: { title: string; description?: string; department?: string }
+  data: { title: string; description?: string; department?: string; assigned_to?: "agent" | "user" }
 ): Promise<Task> {
   const res = await fetch(`${API_URL}/api/tasks/${businessId}`, {
     method: "POST",
@@ -108,6 +109,25 @@ export async function rejectTask(taskId: string, reason: string): Promise<Task> 
 
 export async function deleteTask(taskId: string): Promise<void> {
   await fetch(`${API_URL}/api/tasks/${taskId}`, { method: "DELETE" });
+}
+
+export async function runTask(taskId: string): Promise<Record<string, unknown>> {
+  const res = await fetch(`${API_URL}/api/tasks/${taskId}/run`, { method: "POST" });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Pipeline error" }));
+    throw new Error(err.detail ?? "Pipeline error");
+  }
+  return res.json();
+}
+
+export async function setTaskStatus(taskId: string, status: TaskStatus): Promise<Task> {
+  const res = await fetch(`${API_URL}/api/tasks/${taskId}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error("Failed to update task status");
+  return res.json();
 }
 
 export async function getGlobalTasks(userId: string, businessId?: string): Promise<Task[]> {

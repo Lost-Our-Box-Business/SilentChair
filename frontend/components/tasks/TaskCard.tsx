@@ -3,8 +3,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, CheckCircle2, XCircle, ChevronDown, Trash2, Pencil } from "lucide-react";
-import { updateTask, type Task } from "@/lib/tasks-api";
+import {
+  Loader2, CheckCircle2, XCircle, ChevronDown, Trash2, Pencil,
+  Play, ArrowRight, SquareCheck,
+} from "lucide-react";
+import { updateTask, runTask, setTaskStatus, type Task, type TaskStatus } from "@/lib/tasks-api";
 
 interface Props {
   task: Task;
@@ -12,9 +15,12 @@ interface Props {
   onReject?: (id: string, reason: string) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
   onUpdated?: (updated: Task) => void;
+  onRan?: () => void;        // called after a successful Run Now so the page can refresh
   availableDepartments?: string[];
   businessName?: string;
 }
+
+const STATUS_FLOW: TaskStatus[] = ["planned", "in_progress", "completed"];
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -33,13 +39,23 @@ function formatCost(n: number): string {
   return `$${n.toFixed(4)}`;
 }
 
-export function TaskCard({ task, onApprove, onReject, onDelete, onUpdated, availableDepartments = [], businessName }: Props) {
+export function TaskCard({
+  task,
+  onApprove, onReject, onDelete, onUpdated, onRan,
+  availableDepartments = [],
+  businessName,
+}: Props) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
   const [editDesc, setEditDesc] = useState(task.description ?? "");
   const [editDept, setEditDept] = useState(task.department ?? "");
   const [saving, setSaving] = useState(false);
+
+  const [running, setRunning] = useState(false);
+  const [runError, setRunError] = useState<string | null>(null);
+
+  const [movingTo, setMovingTo] = useState<TaskStatus | null>(null);
 
   const [approving, setApproving] = useState(false);
   const [approveDone, setApproveDone] = useState(false);
@@ -52,8 +68,23 @@ export function TaskCard({ task, onApprove, onReject, onDelete, onUpdated, avail
   const isBlocked = task.status === "awaiting_approval";
   const isFailed = task.status === "failed";
   const isCompleted = task.status === "completed";
+  const isPlanned = task.status === "planned";
+  const isInProgress = task.status === "in_progress";
   const actionsBusy = approveDone || rejectDone;
+
+  const isAgentTask = task.assigned_to === "agent";
+  const isUserTask = task.assigned_to === "user";
   const canEdit = task.created_by === "user";
+
+  // Status movement for user-assigned tasks
+  const currentIdx = STATUS_FLOW.indexOf(task.status as TaskStatus);
+  const nextStatus = currentIdx >= 0 && currentIdx < STATUS_FLOW.length - 1 ? STATUS_FLOW[currentIdx + 1] : null;
+
+  const STATUS_LABELS: Record<string, string> = {
+    planned: "Planned",
+    in_progress: "In Progress",
+    completed: "Complete",
+  };
 
   async function handleSave(e: React.MouseEvent) {
     e.stopPropagation();
@@ -78,6 +109,33 @@ export function TaskCard({ task, onApprove, onReject, onDelete, onUpdated, avail
     setEditDesc(task.description ?? "");
     setEditDept(task.department ?? "");
     setEditing(false);
+  }
+
+  async function handleRunNow(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (running) return;
+    setRunning(true);
+    setRunError(null);
+    try {
+      await runTask(task.id);
+      onRan?.();
+    } catch (err) {
+      setRunError(err instanceof Error ? err.message : "Pipeline error");
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  async function handleMoveStatus(e: React.MouseEvent, status: TaskStatus) {
+    e.stopPropagation();
+    if (movingTo) return;
+    setMovingTo(status);
+    try {
+      const updated = await setTaskStatus(task.id, status);
+      onUpdated?.(updated);
+    } finally {
+      setMovingTo(null);
+    }
   }
 
   async function handleApprove() {
@@ -112,7 +170,7 @@ export function TaskCard({ task, onApprove, onReject, onDelete, onUpdated, avail
     >
       <div className="p-3 space-y-2">
 
-        {/* Edit mode */}
+        {/* ── Edit mode ────────────────────────────────────────────────── */}
         {editing ? (
           <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
             <Input
@@ -147,9 +205,10 @@ export function TaskCard({ task, onApprove, onReject, onDelete, onUpdated, avail
               </Button>
             </div>
           </div>
+
         ) : (
           <>
-            {/* Top row: dept dot + label + Manual badge + chevron + time */}
+            {/* ── Top row ──────────────────────────────────────────────── */}
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 min-w-0">
                 {task.label_color && (
@@ -158,8 +217,11 @@ export function TaskCard({ task, onApprove, onReject, onDelete, onUpdated, avail
                 {task.department && (
                   <span className="text-[10px] text-muted-foreground truncate">{task.department}</span>
                 )}
-                {task.created_by === "user" && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">Manual</span>
+                {task.created_by === "user" && isUserTask && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 shrink-0">Mine</span>
+                )}
+                {task.created_by === "user" && isAgentTask && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">Agent</span>
                 )}
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
@@ -176,14 +238,55 @@ export function TaskCard({ task, onApprove, onReject, onDelete, onUpdated, avail
               {task.title}
             </p>
 
-            {/* Expanded: description + actions */}
+            {/* ── Run Now (agent-assigned planned tasks only) ───────────── */}
+            {isAgentTask && isPlanned && (
+              <div onClick={(e) => e.stopPropagation()}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs w-full"
+                  onClick={handleRunNow}
+                  disabled={running}
+                >
+                  {running
+                    ? <><Loader2 className="h-3 w-3 mr-1.5 animate-spin" />Running pipeline…</>
+                    : <><Play className="h-3 w-3 mr-1.5" />Run now</>
+                  }
+                </Button>
+                {runError && (
+                  <p className="text-[10px] text-red-600 mt-1">{runError}</p>
+                )}
+              </div>
+            )}
+
+            {/* ── User-assigned status movement ─────────────────────────── */}
+            {isUserTask && (isPlanned || isInProgress) && nextStatus && (
+              <div onClick={(e) => e.stopPropagation()}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs w-full"
+                  onClick={(e) => handleMoveStatus(e, nextStatus)}
+                  disabled={!!movingTo}
+                >
+                  {movingTo
+                    ? <><Loader2 className="h-3 w-3 mr-1.5 animate-spin" />Moving…</>
+                    : nextStatus === "in_progress"
+                      ? <><ArrowRight className="h-3 w-3 mr-1.5" />Start working</>
+                      : <><SquareCheck className="h-3 w-3 mr-1.5" />Mark complete</>
+                  }
+                </Button>
+              </div>
+            )}
+
+            {/* ── Expanded: description + edit/delete ──────────────────── */}
             {expanded && (
               <div className="border-t pt-2 mt-1 space-y-2" onClick={(e) => e.stopPropagation()}>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {task.description || <span className="italic">No description</span>}
                 </p>
                 <div className="flex items-center gap-3">
-                  {canEdit && (
+                  {canEdit && !isCompleted && !isFailed && (
                     <button
                       onClick={(e) => { e.stopPropagation(); setEditing(true); setExpanded(false); }}
                       className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
@@ -215,7 +318,7 @@ export function TaskCard({ task, onApprove, onReject, onDelete, onUpdated, avail
               <p className="text-[10px] text-muted-foreground italic">{task.output}</p>
             )}
 
-            {/* Approve / Reject */}
+            {/* ── Approve / Reject (Blocked by User column) ────────────── */}
             {isBlocked && !actionsBusy && (
               <div onClick={(e) => e.stopPropagation()}>
                 {rejectOpen ? (
