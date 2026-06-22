@@ -6,7 +6,7 @@ import { Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TaskBoard } from "@/components/tasks/TaskBoard";
-import { getTasks, createTask, approveTask, rejectTask, type Task } from "@/lib/tasks-api";
+import { getTasks, createTask, approveTask, rejectTask, deleteTask, type Task } from "@/lib/tasks-api";
 
 const DEPARTMENTS = ["Marketing", "Lead Generation", "Client Acquisition", "Other"];
 
@@ -43,6 +43,11 @@ export default function BusinessTasksPage() {
 
   async function handleReject(taskId: string, reason: string) {
     await rejectTask(taskId, reason);
+    await loadTasks();
+  }
+
+  async function handleDelete(taskId: string) {
+    await deleteTask(taskId);
     await loadTasks();
   }
 
@@ -89,6 +94,7 @@ export default function BusinessTasksPage() {
           tasks={tasks}
           onApprove={handleApprove}
           onReject={handleReject}
+          onDelete={handleDelete}
           onAddTask={() => setDialogOpen(true)}
         />
       )}
