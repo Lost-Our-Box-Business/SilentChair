@@ -49,15 +49,6 @@ type Tab = "activity" | "leads" | "contracts" | "invoices" | "usage";
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-const DEPT_LABELS: Record<string, string> = {
-  editorial: "Editorial", seo: "SEO", social_media: "Social Media",
-  distribution: "Distribution", analytics: "Analytics",
-  market_research: "Market Research", lead_research: "Lead Research",
-  lead_qualification: "Lead Qualification", outreach: "Outreach",
-  lead_generation: "Lead Generation", sales_outreach: "Sales Outreach",
-  proposals_contracts: "Proposals & Contracts", billing: "Billing",
-};
-
 function formatCost(n: number): string {
   if (n === 0) return "$0.00";
   if (n < 0.001) return `$${n.toFixed(6)}`;
@@ -90,6 +81,14 @@ export default function BusinessDetailPage() {
   };
   const INVOICE_STATUS_T: Record<Invoice["status"], string> = {
     draft: t("invoiceDraft"), sent: t("invoiceSent"), paid: t("invoicePaid"),
+  };
+  const DEPT_LABELS_T: Record<string, string> = {
+    editorial: t("deptEditorial"), seo: t("deptSeo"), social_media: t("deptSocialMedia"),
+    distribution: t("deptDistribution"), analytics: t("deptAnalytics"),
+    market_research: t("deptMarketResearch"), lead_research: t("deptLeadResearch"),
+    lead_qualification: t("deptLeadQualification"), outreach: t("deptOutreach"),
+    lead_generation: t("deptLeadGeneration"), sales_outreach: t("deptSalesOutreach"),
+    proposals_contracts: t("deptProposalsContracts"), billing: t("deptBilling"),
   };
 
   const [feed, setFeed] = useState<ActivityEntry[]>([]);
@@ -520,7 +519,7 @@ export default function BusinessDetailPage() {
                       .sort(([, a], [, b]) => b - a)
                       .map(([dept, cost]) => (
                         <div key={dept} className="flex items-center gap-3 text-sm">
-                          <span className="text-muted-foreground text-xs w-40 shrink-0">{DEPT_LABELS[dept] ?? dept}</span>
+                          <span className="text-muted-foreground text-xs w-40 shrink-0">{DEPT_LABELS_T[dept] ?? dept}</span>
                           <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
                             <div
                               className="h-full rounded-full bg-primary/60"

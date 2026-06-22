@@ -175,7 +175,20 @@
     "contractSigned": "signed",
     "invoiceDraft": "draft",
     "invoiceSent": "sent",
-    "invoicePaid": "paid"
+    "invoicePaid": "paid",
+    "deptEditorial": "Editorial",
+    "deptSeo": "SEO",
+    "deptSocialMedia": "Social Media",
+    "deptDistribution": "Distribution",
+    "deptAnalytics": "Analytics",
+    "deptMarketResearch": "Market Research",
+    "deptLeadResearch": "Lead Research",
+    "deptLeadQualification": "Lead Qualification",
+    "deptOutreach": "Outreach",
+    "deptLeadGeneration": "Lead Generation",
+    "deptSalesOutreach": "Sales Outreach",
+    "deptProposalsContracts": "Proposals & Contracts",
+    "deptBilling": "Billing"
   },
   "taskBoardPage": {
     "title": "Task Board",

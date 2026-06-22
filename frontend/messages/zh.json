@@ -175,7 +175,20 @@
     "contractSigned": "已签署",
     "invoiceDraft": "草稿",
     "invoiceSent": "已发送",
-    "invoicePaid": "已付款"
+    "invoicePaid": "已付款",
+    "deptEditorial": "编辑",
+    "deptSeo": "搜索引擎优化",
+    "deptSocialMedia": "社交媒体",
+    "deptDistribution": "分发",
+    "deptAnalytics": "分析",
+    "deptMarketResearch": "市场调研",
+    "deptLeadResearch": "线索研究",
+    "deptLeadQualification": "线索资格审定",
+    "deptOutreach": "外联",
+    "deptLeadGeneration": "线索生成",
+    "deptSalesOutreach": "销售外联",
+    "deptProposalsContracts": "提案与合同",
+    "deptBilling": "账单"
   },
   "taskBoardPage": {
     "title": "任务看板",

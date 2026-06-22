@@ -1,6 +1,6 @@
 """Living Business Document API — fetch and correct business context."""
 import traceback
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from app.services import living_doc
 
@@ -12,10 +12,10 @@ class CorrectionRequest(BaseModel):
 
 
 @router.get("/{business_id}/context")
-def get_context(business_id: str):
+def get_context(business_id: str, locale: str = Query(default="en")):
     """Return the business_context for a business. Lazily initializes if empty."""
     try:
-        return living_doc.get_context(business_id)
+        return living_doc.get_context(business_id, locale=locale)
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))

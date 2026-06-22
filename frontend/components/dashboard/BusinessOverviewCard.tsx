@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Send, CheckCircle2, Building2 } from "lucide-react";
 import { getBusinessContext, correctBusinessContext, type BusinessContext } from "@/lib/living-doc-api";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 
 interface Props {
   businessId: string;
@@ -14,6 +14,7 @@ interface Props {
 
 export function BusinessOverviewCard({ businessId }: Props) {
   const t = useTranslations("businessOps");
+  const locale = useLocale();
   const [context, setContext] = useState<BusinessContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [correction, setCorrection] = useState("");
@@ -22,7 +23,7 @@ export function BusinessOverviewCard({ businessId }: Props) {
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    getBusinessContext(businessId)
+    getBusinessContext(businessId, locale)
       .then(setContext)
       .catch(() => {})
       .finally(() => setLoading(false));

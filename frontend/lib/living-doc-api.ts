@@ -13,8 +13,11 @@ export interface BusinessContext {
   last_updated: string | null;
 }
 
-export async function getBusinessContext(businessId: string): Promise<BusinessContext> {
-  const res = await fetch(`${API_URL}/api/business/${businessId}/context`);
+export async function getBusinessContext(businessId: string, locale = "en"): Promise<BusinessContext> {
+  const url = locale && locale !== "en"
+    ? `${API_URL}/api/business/${businessId}/context?locale=${locale}`
+    : `${API_URL}/api/business/${businessId}/context`;
+  const res = await fetch(url);
   if (!res.ok) throw new Error("Failed to fetch business context");
   return res.json();
 }

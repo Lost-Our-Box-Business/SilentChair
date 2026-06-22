@@ -138,11 +138,33 @@ def update_context(
     return merged
 
 
-def get_context(business_id: str) -> dict:
+LANGUAGE_NAMES: dict = {
+    "es": "Spanish", "fr": "French", "pt": "Portuguese",
+    "de": "German", "zh": "Chinese",
+}
+
+
+def _translate_summary(summary: str, locale: str) -> str:
+    lang = LANGUAGE_NAMES.get(locale)
+    if not lang or not summary:
+        return summary
+    prompt = (
+        f"Translate the following business description into {lang}. "
+        "Return ONLY the translated text, no explanation.\n\n"
+        f"{summary}"
+    )
+    try:
+        return _haiku(prompt, 400)
+    except Exception:
+        return summary
+
+
+def get_context(business_id: str, locale: str = "en") -> dict:
     """Return the full business_context JSONB.
 
     Lazily initializes from businesses.profile if business_context is empty —
     so existing businesses get populated on first dashboard load.
+    When locale is not English, the summary is translated on the fly.
     """
     db = get_supabase()
     result = db.table("businesses").select(
@@ -157,7 +179,12 @@ def get_context(business_id: str) -> dict:
     if not ctx.get("summary") and result.data.get("profile"):
         ctx = initialize_from_profile(business_id, result.data["profile"])
 
-    return ctx or dict(EMPTY_CONTEXT)
+    ctx = ctx or dict(EMPTY_CONTEXT)
+
+    if locale and locale != "en" and ctx.get("summary"):
+        ctx = {**ctx, "summary": _translate_summary(ctx["summary"], locale)}
+
+    return ctx
 
 
 def propose_correction(business_id: str, user_message: str) -> dict:

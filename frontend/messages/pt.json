@@ -175,7 +175,20 @@
     "contractSigned": "assinado",
     "invoiceDraft": "rascunho",
     "invoiceSent": "enviada",
-    "invoicePaid": "paga"
+    "invoicePaid": "paga",
+    "deptEditorial": "Editorial",
+    "deptSeo": "SEO",
+    "deptSocialMedia": "Mídias Sociais",
+    "deptDistribution": "Distribuição",
+    "deptAnalytics": "Análise",
+    "deptMarketResearch": "Pesquisa de Mercado",
+    "deptLeadResearch": "Pesquisa de Leads",
+    "deptLeadQualification": "Qualificação de Leads",
+    "deptOutreach": "Divulgação",
+    "deptLeadGeneration": "Geração de Leads",
+    "deptSalesOutreach": "Abordagem de Vendas",
+    "deptProposalsContracts": "Propostas & Contratos",
+    "deptBilling": "Faturamento"
   },
   "taskBoardPage": {
     "title": "Quadro de tarefas",

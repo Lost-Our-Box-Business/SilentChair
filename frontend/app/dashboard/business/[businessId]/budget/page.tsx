@@ -10,22 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, DollarSign, TrendingUp, AlertCircle, CheckCircle2 } from "lucide-react";
 import { getBudgetState, getUsageHistory, updateBudget, type BudgetState, type DailyUsage } from "@/lib/usage-api";
 import { createClient } from "@/lib/supabase/client";
-
-const DEPT_LABELS: Record<string, string> = {
-  editorial: "Editorial",
-  seo: "SEO",
-  social_media: "Social Media",
-  distribution: "Distribution",
-  analytics: "Analytics",
-  market_research: "Market Research",
-  lead_research: "Lead Research",
-  lead_qualification: "Lead Qualification",
-  outreach: "Outreach",
-  lead_generation: "Lead Generation",
-  sales_outreach: "Sales Outreach",
-  proposals_contracts: "Proposals & Contracts",
-  billing: "Billing",
-};
+import { useTranslations } from "next-intl";
 
 function formatCost(n: number): string {
   if (n === 0) return "$0.00";
@@ -52,6 +37,15 @@ function SpendBar({ spend, limit }: { spend: number; limit: number | null }) {
 
 export default function BudgetPage() {
   const { businessId } = useParams<{ businessId: string }>();
+  const t = useTranslations("businessOps");
+  const DEPT_LABELS: Record<string, string> = {
+    editorial: t("deptEditorial"), seo: t("deptSeo"), social_media: t("deptSocialMedia"),
+    distribution: t("deptDistribution"), analytics: t("deptAnalytics"),
+    market_research: t("deptMarketResearch"), lead_research: t("deptLeadResearch"),
+    lead_qualification: t("deptLeadQualification"), outreach: t("deptOutreach"),
+    lead_generation: t("deptLeadGeneration"), sales_outreach: t("deptSalesOutreach"),
+    proposals_contracts: t("deptProposalsContracts"), billing: t("deptBilling"),
+  };
   const [budget, setBudget] = useState<BudgetState | null>(null);
   const [history, setHistory] = useState<DailyUsage[]>([]);
   const [activeDepts, setActiveDepts] = useState<string[]>([]);
