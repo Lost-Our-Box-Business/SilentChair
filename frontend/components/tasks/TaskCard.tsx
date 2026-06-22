@@ -8,6 +8,7 @@ import {
   Play, ArrowRight, SquareCheck,
 } from "lucide-react";
 import { updateTask, runTask, setTaskStatus, type Task, type TaskStatus } from "@/lib/tasks-api";
+import { ApprovalDetail } from "./ApprovalDetail";
 
 interface Props {
   task: Task;
@@ -45,7 +46,7 @@ export function TaskCard({
   availableDepartments = [],
   businessName,
 }: Props) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(task.status === "awaiting_approval");
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
   const [editDesc, setEditDesc] = useState(task.description ?? "");
@@ -316,6 +317,13 @@ export function TaskCard({
             {/* Rejection reason */}
             {isFailed && task.output?.startsWith("Rejected:") && (
               <p className="text-[10px] text-muted-foreground italic">{task.output}</p>
+            )}
+
+            {/* ── Work preview (Blocked by User) ───────────────────────── */}
+            {isBlocked && !actionsBusy && task.activity_log_id && expanded && (
+              <div className="border-t pt-2 mt-1">
+                <ApprovalDetail activityLogId={task.activity_log_id} />
+              </div>
             )}
 
             {/* ── Approve / Reject (Blocked by User column) ────────────── */}

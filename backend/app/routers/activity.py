@@ -10,6 +10,16 @@ from app.services import tasks_sync, pipeline_runner
 router = APIRouter(tags=["activity"])
 
 
+@router.get("/activity/entry/{activity_id}")
+async def get_entry(activity_id: str):
+    """Return a single activity_log row including its detail payload."""
+    db = get_supabase()
+    result = db.table("activity_log").select("*").eq("id", activity_id).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Activity not found")
+    return result.data[0]
+
+
 @router.get("/activity/{business_id}")
 async def get_feed(business_id: str, limit: int = 50):
     return get_activity_feed(business_id, limit=limit)

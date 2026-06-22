@@ -52,6 +52,10 @@ export async function getActivityFeed(businessId: string, limit = 50): Promise<A
   return apiFetch<ActivityEntry[]>(`/api/activity/${businessId}?limit=${limit}`);
 }
 
+export async function getActivityEntry(activityId: string): Promise<ActivityEntry> {
+  return apiFetch<ActivityEntry>(`/api/activity/entry/${activityId}`);
+}
+
 export async function approveActivity(activityId: string): Promise<ActivityEntry> {
   return apiFetch<ActivityEntry>(`/api/activity/${activityId}/approve`, { method: "POST" });
 }
