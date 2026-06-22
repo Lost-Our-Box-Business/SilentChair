@@ -16,6 +16,7 @@ export default function BusinessTasksPage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [newDesc, setNewDesc] = useState("");
   const [newDept, setNewDept] = useState("");
   const [creating, setCreating] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -51,10 +52,12 @@ export default function BusinessTasksPage() {
     try {
       await createTask(businessId, {
         title: newTitle.trim(),
+        description: newDesc.trim() || undefined,
         department: newDept || undefined,
       });
       setDialogOpen(false);
       setNewTitle("");
+      setNewDesc("");
       setNewDept("");
       await loadTasks();
     } finally {
@@ -110,7 +113,14 @@ export default function BusinessTasksPage() {
                 placeholder="Task title"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") closeDialog(); }}
+                onKeyDown={(e) => { if (e.key === "Escape") closeDialog(); }}
+              />
+              <textarea
+                placeholder="Description (optional)"
+                value={newDesc}
+                onChange={(e) => setNewDesc(e.target.value)}
+                rows={3}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring placeholder:text-muted-foreground"
               />
               <select
                 value={newDept}

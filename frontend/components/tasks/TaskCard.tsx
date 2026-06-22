@@ -32,6 +32,7 @@ function formatCost(n: number): string {
 }
 
 export function TaskCard({ task, onApprove, onReject, businessName }: Props) {
+  const [expanded, setExpanded] = useState(false);
   const [approving, setApproving] = useState(false);
   const [approveDone, setApproveDone] = useState(false);
   const [rejecting, setRejecting] = useState(false);
@@ -70,9 +71,10 @@ export function TaskCard({ task, onApprove, onReject, businessName }: Props) {
 
   return (
     <Card
-      className={`text-sm transition-colors ${
+      className={`text-sm transition-colors cursor-pointer ${
         isBlocked && !actionsBusy ? "border-amber-500/60 bg-amber-500/5" : ""
       } ${isFailed ? "border-red-500/40 bg-red-500/5" : ""}`}
+      onClick={() => setExpanded((v) => !v)}
     >
       <CardContent className="p-3 space-y-2">
         {/* Top row: dept label + time */}
@@ -110,6 +112,13 @@ export function TaskCard({ task, onApprove, onReject, businessName }: Props) {
           {task.title}
         </p>
 
+        {/* Description (shown when expanded) */}
+        {expanded && task.description && (
+          <p className="text-xs text-muted-foreground leading-relaxed border-t pt-2 mt-1">
+            {task.description}
+          </p>
+        )}
+
         {/* Rejection reason */}
         {isFailed && task.output?.startsWith("Rejected:") && (
           <p className="text-[10px] text-muted-foreground italic">{task.output}</p>
@@ -124,7 +133,7 @@ export function TaskCard({ task, onApprove, onReject, businessName }: Props) {
 
         {/* Approve / Reject actions on blocked tasks */}
         {isBlocked && !actionsBusy && (
-          <>
+          <div onClick={(e) => e.stopPropagation()}>
             {rejectOpen ? (
               <div className="space-y-1.5">
                 <Input
@@ -178,7 +187,7 @@ export function TaskCard({ task, onApprove, onReject, businessName }: Props) {
                 </Button>
               </div>
             )}
-          </>
+          </div>
         )}
 
         {/* Feedback after action */}
