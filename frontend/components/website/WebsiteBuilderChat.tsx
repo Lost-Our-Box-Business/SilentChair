@@ -9,6 +9,7 @@ import { sendWebsiteMessage, type WebsiteFile, type ChatMessage } from "@/lib/we
 import { Send, Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useTranslations } from "next-intl";
 
 interface WebsiteBuilderChatProps {
   websiteId: string;
@@ -17,25 +18,19 @@ interface WebsiteBuilderChatProps {
   onFilesUpdate: (files: WebsiteFile[]) => void;
 }
 
-const WELCOME: ChatMessage = {
-  role: "assistant",
-  content:
-    "Hi! I'm your web developer. Describe the website you want and I'll build it for you. " +
-    "You can say things like:\n\n" +
-    "- \"Build a homepage for a plumbing business with a hero section and contact form\"\n" +
-    "- \"Add a services page with 3 service cards\"\n" +
-    "- \"Change the color scheme to blue and white\"\n\n" +
-    "What would you like to build?",
-};
-
 export function WebsiteBuilderChat({
   websiteId,
   initialMessages,
   initialFiles,
   onFilesUpdate,
 }: WebsiteBuilderChatProps) {
+  const t = useTranslations("website");
+  const welcomeMessage: ChatMessage = {
+    role: "assistant",
+    content: t("chatWelcome"),
+  };
   const [messages, setMessages] = useState<ChatMessage[]>(
-    initialMessages && initialMessages.length > 0 ? initialMessages : [WELCOME],
+    initialMessages && initialMessages.length > 0 ? initialMessages : [welcomeMessage],
   );
   const [currentFiles, setCurrentFiles] = useState<WebsiteFile[]>(initialFiles ?? []);
   const [input, setInput] = useState("");
@@ -64,7 +59,7 @@ export function WebsiteBuilderChat({
     } catch {
       setMessages([
         ...newMessages,
-        { role: "assistant", content: "Sorry, something went wrong. Please try again." },
+        { role: "assistant", content: t("chatError") },
       ]);
     } finally {
       setLoading(false);
@@ -87,8 +82,8 @@ export function WebsiteBuilderChat({
           </AvatarFallback>
         </Avatar>
         <div>
-          <p className="text-sm font-medium">Web Developer</p>
-          <p className="text-xs text-muted-foreground">SilentChair Website Builder</p>
+          <p className="text-sm font-medium">{t("webDeveloper")}</p>
+          <p className="text-xs text-muted-foreground">{t("websiteBuilder")}</p>
         </div>
       </div>
 
@@ -164,7 +159,7 @@ export function WebsiteBuilderChat({
       <div className="p-4 border-t shrink-0">
         <div className="flex gap-2 items-end">
           <Textarea
-            placeholder="Describe what you want… (Enter to send, Shift+Enter for newline)"
+            placeholder={t("chatPlaceholder")}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}

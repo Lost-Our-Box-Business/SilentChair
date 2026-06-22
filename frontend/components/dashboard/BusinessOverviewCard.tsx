@@ -6,12 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Send, CheckCircle2, Building2 } from "lucide-react";
 import { getBusinessContext, correctBusinessContext, type BusinessContext } from "@/lib/living-doc-api";
+import { useTranslations } from "next-intl";
 
 interface Props {
   businessId: string;
 }
 
 export function BusinessOverviewCard({ businessId }: Props) {
+  const t = useTranslations("businessOps");
   const [context, setContext] = useState<BusinessContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [correction, setCorrection] = useState("");
@@ -67,7 +69,7 @@ export function BusinessOverviewCard({ businessId }: Props) {
       <CardHeader className="pb-3">
         <CardTitle className="text-sm flex items-center gap-2">
           <Building2 className="h-4 w-4 text-muted-foreground" />
-          Business Overview
+          {t("businessOverview")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -76,7 +78,7 @@ export function BusinessOverviewCard({ businessId }: Props) {
         <div className="flex items-center gap-2">
           <Input
             className="h-8 text-xs"
-            placeholder={`Something wrong? Tell us (e.g. "we also sell B2B")`}
+            placeholder={t("overviewPlaceholder")}
             value={correction}
             onChange={(e) => setCorrection(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleCorrect(); }}

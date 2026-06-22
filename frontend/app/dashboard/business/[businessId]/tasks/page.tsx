@@ -6,6 +6,7 @@ import { Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TaskBoard } from "@/components/tasks/TaskBoard";
+import { useTranslations } from "next-intl";
 import {
   getTasks, createTask, approveTask, rejectTask, deleteTask,
   getBusinessDepartments, type Task,
@@ -15,6 +16,8 @@ const DEPARTMENTS = ["Marketing", "Lead Generation", "Client Acquisition", "Othe
 
 export default function BusinessTasksPage() {
   const { businessId } = useParams<{ businessId: string }>();
+  const t = useTranslations("taskBoardPage");
+  const tBoard = useTranslations("taskBoard");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +64,7 @@ export default function BusinessTasksPage() {
   }
 
   function handleUpdated(updated: Task) {
-    setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+    setTasks((prev) => prev.map((task) => (task.id === updated.id ? updated : task)));
   }
 
   async function handleCreate() {
@@ -92,10 +95,8 @@ export default function BusinessTasksPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Task Board</h1>
-        <p className="text-sm text-muted-foreground">
-          Pipeline runs, approvals, and manual tasks for this business
-        </p>
+        <h1 className="text-xl font-semibold">{t("title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
 
       {loading ? (
@@ -123,7 +124,7 @@ export default function BusinessTasksPage() {
         >
           <div className="bg-background border rounded-lg shadow-lg w-full max-w-sm mx-4 p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Add Task</h2>
+              <h2 className="text-sm font-semibold">{t("addTaskTitle")}</h2>
               <button onClick={closeDialog} className="text-muted-foreground hover:text-foreground">
                 <X className="h-4 w-4" />
               </button>
@@ -132,13 +133,13 @@ export default function BusinessTasksPage() {
             <div className="space-y-3">
               <Input
                 ref={titleRef}
-                placeholder="Task title"
+                placeholder={tBoard("taskTitle")}
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Escape") closeDialog(); }}
               />
               <textarea
-                placeholder="Description (optional)"
+                placeholder={tBoard("descriptionOptional")}
                 value={newDesc}
                 onChange={(e) => setNewDesc(e.target.value)}
                 rows={3}
@@ -149,7 +150,7 @@ export default function BusinessTasksPage() {
                 onChange={(e) => setNewDept(e.target.value)}
                 className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
-                <option value="">Department (optional)</option>
+                <option value="">{t("departmentOptional")}</option>
                 {departments.map((d) => (
                   <option key={d} value={d}>{d}</option>
                 ))}
@@ -157,7 +158,7 @@ export default function BusinessTasksPage() {
 
               {/* Assignee toggle */}
               <div className="space-y-1.5">
-                <p className="text-xs text-muted-foreground">Assign to</p>
+                <p className="text-xs text-muted-foreground">{t("assignTo")}</p>
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -168,7 +169,7 @@ export default function BusinessTasksPage() {
                         : "border-input bg-background text-muted-foreground hover:bg-muted"
                     }`}
                   >
-                    Agent
+                    {tBoard("agentLabel")}
                   </button>
                   <button
                     type="button"
@@ -179,24 +180,22 @@ export default function BusinessTasksPage() {
                         : "border-input bg-background text-muted-foreground hover:bg-muted"
                     }`}
                   >
-                    Me
+                    {t("me")}
                   </button>
                 </div>
                 <p className="text-[10px] text-muted-foreground">
-                  {newAssignee === "agent"
-                    ? "The agent picks this up when the pipeline runs (or you can run it now from the card)."
-                    : "You handle this task and move it through the columns manually."}
+                  {newAssignee === "agent" ? t("agentHint") : t("meHint")}
                 </p>
               </div>
             </div>
 
             <div className="flex justify-end gap-2">
               <Button variant="outline" size="sm" onClick={closeDialog}>
-                Cancel
+                {tBoard("cancel")}
               </Button>
               <Button size="sm" onClick={handleCreate} disabled={!newTitle.trim() || creating}>
                 {creating && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
-                Create
+                {t("create")}
               </Button>
             </div>
           </div>

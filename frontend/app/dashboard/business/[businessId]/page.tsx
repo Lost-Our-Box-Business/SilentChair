@@ -16,7 +16,7 @@ import {
   updateLeadStatus, updateContractStatus, updateInvoiceStatus,
   type ActivityEntry, type PipelineRunResult, type Lead, type Contract, type Invoice,
 } from "@/lib/activity-api";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { getBudgetState, type BudgetState } from "@/lib/usage-api";
 import { BusinessOverviewCard } from "@/components/dashboard/BusinessOverviewCard";
 
@@ -30,13 +30,6 @@ function timeAgo(iso: string): string {
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
   return `${Math.floor(hrs / 24)}d ago`;
-}
-
-function actionTypeLabel(type: string): string {
-  const map: Record<string, string> = {
-    pipeline_log: "Pipeline", approval_required: "Approval needed", pipeline_complete: "Complete",
-  };
-  return map[type] ?? type.replace(/_/g, " ");
 }
 
 const LEAD_STATUS_COLORS: Record<Lead["status"], string> = {
@@ -76,7 +69,28 @@ export default function BusinessDetailPage() {
   const { businessId } = useParams<{ businessId: string }>();
   const router = useRouter();
   const locale = useLocale();
+  const t = useTranslations("businessOps");
   const [tab, setTab] = useState<Tab>("activity");
+
+  const actionTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      pipeline_log: t("actionPipelineLog"),
+      approval_required: t("actionApprovalRequired"),
+      pipeline_complete: t("actionPipelineComplete"),
+    };
+    return labels[type] ?? type.replace(/_/g, " ");
+  };
+
+  const LEAD_STATUS_T: Record<Lead["status"], string> = {
+    new: t("leadNew"), contacted: t("leadContacted"), qualified: t("leadQualified"),
+    proposal_sent: t("leadProposalSent"), won: t("leadWon"), lost: t("leadLost"),
+  };
+  const CONTRACT_STATUS_T: Record<Contract["status"], string> = {
+    draft: t("contractDraft"), sent: t("contractSent"), signed: t("contractSigned"),
+  };
+  const INVOICE_STATUS_T: Record<Invoice["status"], string> = {
+    draft: t("invoiceDraft"), sent: t("invoiceSent"), paid: t("invoicePaid"),
+  };
 
   const [feed, setFeed] = useState<ActivityEntry[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -133,11 +147,11 @@ export default function BusinessDetailPage() {
   const pendingApprovals = feed.filter((e) => e.requires_approval && !e.approved_at);
 
   const TABS: { id: Tab; label: string; icon: React.ElementType; count?: number }[] = [
-    { id: "activity", label: "Activity", icon: Clock, count: feed.length },
-    { id: "leads", label: "Leads", icon: Users, count: leads.length },
-    { id: "contracts", label: "Contracts", icon: FileText, count: contracts.length },
-    { id: "invoices", label: "Invoices", icon: Receipt, count: invoices.length },
-    { id: "usage", label: "Usage", icon: DollarSign },
+    { id: "activity", label: t("tabActivity"), icon: Clock, count: feed.length },
+    { id: "leads", label: t("tabLeads"), icon: Users, count: leads.length },
+    { id: "contracts", label: t("tabContracts"), icon: FileText, count: contracts.length },
+    { id: "invoices", label: t("tabInvoices"), icon: Receipt, count: invoices.length },
+    { id: "usage", label: t("tabUsage"), icon: DollarSign },
   ];
 
   return (
@@ -147,13 +161,13 @@ export default function BusinessDetailPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Business Operations</h1>
-          <p className="text-sm text-muted-foreground">Activity, leads, contracts, and invoices</p>
+          <h1 className="text-xl font-semibold">{t("operations")}</h1>
+          <p className="text-sm text-muted-foreground">{t("operationsSubtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           {budgetState && (
             <span className="text-xs text-muted-foreground hidden sm:inline">
-              today: <span className="font-mono font-medium text-foreground">{formatCost(budgetState.today_spend)}</span>
+              {t("today")}: <span className="font-mono font-medium text-foreground">{formatCost(budgetState.today_spend)}</span>
               {budgetState.daily_budget != null && (
                 <span> / {formatCost(budgetState.daily_budget)}</span>
               )}
@@ -161,11 +175,11 @@ export default function BusinessDetailPage() {
           )}
           <Button variant="outline" size="sm" onClick={loadAll} disabled={loading}>
             <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
-            Refresh
+            {t("refresh")}
           </Button>
           <Button size="sm" onClick={handleRun} disabled={running}>
             {running ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Play className="h-3.5 w-3.5 mr-1.5" />}
-            {running ? "Running…" : "Run pipeline now"}
+            {running ? t("running") : t("runPipeline")}
           </Button>
         </div>
       </div>
@@ -178,7 +192,7 @@ export default function BusinessDetailPage() {
               {runResult.status === "awaiting_approval"
                 ? <AlertCircle className="h-4 w-4 text-yellow-500" />
                 : <CheckCircle2 className="h-4 w-4 text-green-500" />}
-              {runResult.status === "awaiting_approval" ? "Pipeline paused — approval needed" : "Pipeline complete"}
+              {runResult.status === "awaiting_approval" ? t("pipelinePaused") : t("pipelineComplete")}
             </CardTitle>
             {runResult.approval_action && <CardDescription className="text-xs">{runResult.approval_action}</CardDescription>}
           </CardHeader>
@@ -193,13 +207,13 @@ export default function BusinessDetailPage() {
               </div>
             )}
             {runResult.qualified_leads && runResult.qualified_leads.length > 0 && (
-              <p>{runResult.qualified_leads.length} qualified lead(s) found</p>
+              <p>{t("qualifiedLeads", { count: runResult.qualified_leads.length })}</p>
             )}
             {runResult.contracts && runResult.contracts.length > 0 && (
-              <p>{runResult.contracts.length} contract(s) drafted</p>
+              <p>{t("contractsDrafted", { count: runResult.contracts.length })}</p>
             )}
             {runResult.invoices && runResult.invoices.length > 0 && (
-              <p>{runResult.invoices.length} invoice(s) generated</p>
+              <p>{t("invoicesGenerated", { count: runResult.invoices.length })}</p>
             )}
           </CardContent>
         </Card>
@@ -208,7 +222,7 @@ export default function BusinessDetailPage() {
         <Card className="border-destructive/50 bg-destructive/5">
           <CardHeader className="pb-0">
             <CardTitle className="text-sm flex items-center gap-2 text-destructive">
-              <AlertCircle className="h-4 w-4" /> Pipeline error
+              <AlertCircle className="h-4 w-4" /> {t("pipelineError")}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-2"><p className="text-xs text-muted-foreground">{runError}</p></CardContent>
@@ -219,7 +233,7 @@ export default function BusinessDetailPage() {
       {pendingApprovals.length > 0 && (
         <div className="space-y-2">
           <h2 className="text-sm font-medium flex items-center gap-1.5">
-            <AlertCircle className="h-4 w-4 text-yellow-500" /> Pending approvals ({pendingApprovals.length})
+            <AlertCircle className="h-4 w-4 text-yellow-500" /> {t("pendingApprovals", { count: pendingApprovals.length })}
           </h2>
           {pendingApprovals.map((entry) => {
             const emails = entry.detail?.outreach_emails ?? [];
@@ -239,7 +253,7 @@ export default function BusinessDetailPage() {
                       disabled={approvingId === entry.id}
                     >
                       {approvingId === entry.id && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                      Approve & send
+                      {t("approveAndSend")}
                     </Button>
                   </div>
                 </CardHeader>
@@ -248,7 +262,7 @@ export default function BusinessDetailPage() {
                 {emails.length > 0 && (
                   <CardContent className="pt-0 pb-3 px-4 space-y-2">
                     <p className="text-xs font-medium text-muted-foreground">
-                      {emails.length} email{emails.length !== 1 ? "s" : ""} queued — review before sending:
+                      {t("emailsQueued", { count: emails.length })}
                     </p>
                     {emails.map((email, i) => (
                       <details key={i} className="rounded-lg border bg-background overflow-hidden">
@@ -267,7 +281,7 @@ export default function BusinessDetailPage() {
                               <span><span className="font-medium">Company:</span> {email.lead_data.company as string}</span>
                             )}
                             {(email.lead_data?.score as number) && (
-                              <span><span className="font-medium">Score:</span> {email.lead_data.score as number}/10</span>
+                              <span><span className="font-medium">{t("score")}:</span> {email.lead_data.score as number}/10</span>
                             )}
                           </div>
                           <div
@@ -284,7 +298,7 @@ export default function BusinessDetailPage() {
                 {articles.length > 0 && (
                   <CardContent className="pt-0 pb-3 px-4 space-y-2">
                     <p className="text-xs font-medium text-muted-foreground">
-                      {articles.length} article{articles.length !== 1 ? "s" : ""} ready to publish — review before going live:
+                      {t("articlesQueued", { count: articles.length })}
                     </p>
                     {articles.map((article, i) => (
                       <details key={i} className="rounded-lg border bg-background overflow-hidden">
@@ -339,7 +353,7 @@ export default function BusinessDetailPage() {
                 <Loader2 className="h-4 w-4 animate-spin" /><span className="text-sm">Loading…</span>
               </div>
             ) : feed.length === 0 ? (
-              <Card><CardContent className="py-12 text-center"><p className="text-sm text-muted-foreground">No activity yet. Run the pipeline to get started.</p></CardContent></Card>
+              <Card><CardContent className="py-12 text-center"><p className="text-sm text-muted-foreground">{t("noActivity")}</p></CardContent></Card>
             ) : (
               feed.slice(0, 30).map((entry) => (
                 <div key={entry.id} className="flex items-start gap-3 rounded-lg border px-3 py-2.5">
@@ -353,7 +367,7 @@ export default function BusinessDetailPage() {
                     <div className="flex items-center gap-2 mt-0.5">
                       <Badge variant="outline" className="text-[10px] px-1 py-0">{actionTypeLabel(entry.action_type)}</Badge>
                       <span className="text-xs text-muted-foreground">{timeAgo(entry.created_at)}</span>
-                      {entry.approved_at && <span className="text-xs text-green-600">approved {timeAgo(entry.approved_at)}</span>}
+                      {entry.approved_at && <span className="text-xs text-green-600">{t("approved")} {timeAgo(entry.approved_at)}</span>}
                     </div>
                   </div>
                 </div>
@@ -366,7 +380,7 @@ export default function BusinessDetailPage() {
         {tab === "leads" && (
           <div className="space-y-2">
             {leads.length === 0 ? (
-              <Card><CardContent className="py-12 text-center"><p className="text-sm text-muted-foreground">No leads yet. Run the pipeline to generate leads.</p></CardContent></Card>
+              <Card><CardContent className="py-12 text-center"><p className="text-sm text-muted-foreground">{t("noLeads")}</p></CardContent></Card>
             ) : (
               leads.map((lead) => (
                 <Card key={lead.id}>
@@ -379,10 +393,10 @@ export default function BusinessDetailPage() {
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {lead.score !== null && (
-                          <span className="text-xs font-medium bg-muted rounded px-1.5 py-0.5">Score: {lead.score}/10</span>
+                          <span className="text-xs font-medium bg-muted rounded px-1.5 py-0.5">{t("score")}: {lead.score}/10</span>
                         )}
-                        <Badge variant={(LEAD_STATUS_COLORS[lead.status] as "default" | "secondary" | "destructive" | "outline") ?? "outline"} className="text-[10px] capitalize">
-                          {lead.status.replace("_", " ")}
+                        <Badge variant={(LEAD_STATUS_COLORS[lead.status] as "default" | "secondary" | "destructive" | "outline") ?? "outline"} className="text-[10px]">
+                          {LEAD_STATUS_T[lead.status]}
                         </Badge>
                       </div>
                     </div>
@@ -397,7 +411,7 @@ export default function BusinessDetailPage() {
                           }}
                           className={`text-[10px] px-2 py-0.5 rounded border transition-colors focus-visible:outline-none ${lead.status === s ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}
                         >
-                          {s.replace("_", " ")}
+                          {LEAD_STATUS_T[s]}
                         </button>
                       ))}
                     </div>
@@ -412,7 +426,7 @@ export default function BusinessDetailPage() {
         {tab === "contracts" && (
           <div className="space-y-2">
             {contracts.length === 0 ? (
-              <Card><CardContent className="py-12 text-center"><p className="text-sm text-muted-foreground">No contracts yet. Contracts are generated automatically by the client acquisition pipeline.</p></CardContent></Card>
+              <Card><CardContent className="py-12 text-center"><p className="text-sm text-muted-foreground">{t("noContracts")}</p></CardContent></Card>
             ) : (
               contracts.map((contract) => (
                 <Card key={contract.id}>
@@ -420,10 +434,10 @@ export default function BusinessDetailPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="space-y-0.5">
                         <p className="text-sm font-medium">{contract.title}</p>
-                        <p className="text-xs text-muted-foreground">Created {timeAgo(contract.created_at)}</p>
+                        <p className="text-xs text-muted-foreground">{t("created")} {timeAgo(contract.created_at)}</p>
                       </div>
-                      <Badge variant={(CONTRACT_STATUS_COLORS[contract.status] as "default" | "secondary" | "outline") ?? "outline"} className="text-[10px] capitalize shrink-0">
-                        {contract.status}
+                      <Badge variant={(CONTRACT_STATUS_COLORS[contract.status] as "default" | "secondary" | "outline") ?? "outline"} className="text-[10px] shrink-0">
+                        {CONTRACT_STATUS_T[contract.status]}
                       </Badge>
                     </div>
                     <div className="flex gap-1 mt-2">
@@ -437,12 +451,12 @@ export default function BusinessDetailPage() {
                           }}
                           className={`text-[10px] px-2 py-0.5 rounded border transition-colors focus-visible:outline-none ${contract.status === s ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}
                         >
-                          {s}
+                          {CONTRACT_STATUS_T[s]}
                         </button>
                       ))}
                     </div>
                     <details className="mt-2">
-                      <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">View contract HTML</summary>
+                      <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">{t("viewContractHtml")}</summary>
                       <div className="mt-2 rounded border bg-muted/30 p-3 text-xs overflow-auto max-h-64"
                         dangerouslySetInnerHTML={{ __html: contract.content }} />
                     </details>
@@ -460,7 +474,7 @@ export default function BusinessDetailPage() {
               <>
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div className="rounded-xl border p-4 bg-muted/30 space-y-1">
-                    <p className="text-xs text-muted-foreground">Today's spend</p>
+                    <p className="text-xs text-muted-foreground">{t("todaySpend")}</p>
                     <p className="text-lg font-bold">{formatCost(budgetState.today_spend)}</p>
                     {budgetState.daily_budget != null && (
                       <div className="mt-1">
@@ -471,37 +485,37 @@ export default function BusinessDetailPage() {
                           />
                         </div>
                         <p className="text-[10px] text-muted-foreground mt-0.5">
-                          of {formatCost(budgetState.daily_budget)} daily limit
+                          {t("dailyLimitOf", { amount: formatCost(budgetState.daily_budget) })}
                         </p>
                       </div>
                     )}
                   </div>
                   <div className="rounded-xl border p-4 bg-muted/30 space-y-1">
-                    <p className="text-xs text-muted-foreground">Daily limit</p>
+                    <p className="text-xs text-muted-foreground">{t("dailyLimit")}</p>
                     <p className="text-lg font-bold">
-                      {budgetState.daily_budget != null ? formatCost(budgetState.daily_budget) : "Unlimited"}
+                      {budgetState.daily_budget != null ? formatCost(budgetState.daily_budget) : t("unlimited")}
                     </p>
                     {budgetState.daily_remaining != null && (
-                      <p className="text-[10px] text-muted-foreground">{formatCost(budgetState.daily_remaining)} remaining</p>
+                      <p className="text-[10px] text-muted-foreground">{t("remaining", { amount: formatCost(budgetState.daily_remaining) })}</p>
                     )}
                   </div>
                   <div className="rounded-xl border p-4 bg-muted/30 flex items-end justify-between">
                     <div>
-                      <p className="text-xs text-muted-foreground">Budget settings</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Set limits & allocations</p>
+                      <p className="text-xs text-muted-foreground">{t("budgetSettings")}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{t("setLimits")}</p>
                     </div>
                     <button
                       onClick={() => router.push(`/dashboard/business/${businessId}/budget`)}
                       className="flex items-center gap-1 text-xs text-primary hover:underline"
                     >
-                      <Settings className="h-3 w-3" /> Configure
+                      <Settings className="h-3 w-3" /> {t("configure")}
                     </button>
                   </div>
                 </div>
 
                 {Object.keys(budgetState.today_by_dept).length > 0 && (
                   <div className="rounded-xl border p-4 space-y-2">
-                    <p className="text-xs font-medium">Today's spend by department</p>
+                    <p className="text-xs font-medium">{t("spendByDept")}</p>
                     {Object.entries(budgetState.today_by_dept)
                       .sort(([, a], [, b]) => b - a)
                       .map(([dept, cost]) => (
@@ -531,7 +545,7 @@ export default function BusinessDetailPage() {
                 {Object.keys(budgetState.today_by_dept).length === 0 && (
                   <Card>
                     <CardContent className="py-12 text-center">
-                      <p className="text-sm text-muted-foreground">No usage today. Run the pipeline to start tracking costs.</p>
+                      <p className="text-sm text-muted-foreground">{t("noUsage")}</p>
                     </CardContent>
                   </Card>
                 )}
@@ -539,7 +553,7 @@ export default function BusinessDetailPage() {
             ) : (
               <Card>
                 <CardContent className="py-12 text-center">
-                  <p className="text-sm text-muted-foreground">Usage data unavailable. Run the migration and reload.</p>
+                  <p className="text-sm text-muted-foreground">{t("usageUnavailable")}</p>
                 </CardContent>
               </Card>
             )}
@@ -550,7 +564,7 @@ export default function BusinessDetailPage() {
         {tab === "invoices" && (
           <div className="space-y-2">
             {invoices.length === 0 ? (
-              <Card><CardContent className="py-12 text-center"><p className="text-sm text-muted-foreground">No invoices yet. Invoices are generated after contracts in the client acquisition pipeline.</p></CardContent></Card>
+              <Card><CardContent className="py-12 text-center"><p className="text-sm text-muted-foreground">{t("noInvoices")}</p></CardContent></Card>
             ) : (
               invoices.map((invoice) => (
                 <Card key={invoice.id}>
@@ -561,11 +575,11 @@ export default function BusinessDetailPage() {
                         <p className="text-xs text-muted-foreground">
                           {invoice.amount > 0 && <span className="font-medium text-foreground">${invoice.amount.toLocaleString()}</span>}
                           {invoice.amount > 0 && " · "}
-                          Created {timeAgo(invoice.created_at)}
+                          {t("created")} {timeAgo(invoice.created_at)}
                         </p>
                       </div>
-                      <Badge variant={(INVOICE_STATUS_COLORS[invoice.status] as "default" | "secondary" | "outline") ?? "outline"} className="text-[10px] capitalize shrink-0">
-                        {invoice.status}
+                      <Badge variant={(INVOICE_STATUS_COLORS[invoice.status] as "default" | "secondary" | "outline") ?? "outline"} className="text-[10px] shrink-0">
+                        {INVOICE_STATUS_T[invoice.status]}
                       </Badge>
                     </div>
                     <div className="flex gap-1 mt-2">
@@ -579,12 +593,12 @@ export default function BusinessDetailPage() {
                           }}
                           className={`text-[10px] px-2 py-0.5 rounded border transition-colors focus-visible:outline-none ${invoice.status === s ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}
                         >
-                          {s}
+                          {INVOICE_STATUS_T[s]}
                         </button>
                       ))}
                     </div>
                     <details className="mt-2">
-                      <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">View invoice HTML</summary>
+                      <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">{t("viewInvoiceHtml")}</summary>
                       <div className="mt-2 rounded border bg-muted/30 p-3 text-xs overflow-auto max-h-64"
                         dangerouslySetInnerHTML={{ __html: invoice.content }} />
                     </details>
