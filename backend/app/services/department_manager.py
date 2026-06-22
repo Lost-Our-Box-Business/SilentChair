@@ -180,7 +180,7 @@ class DepartmentManager:
             return ManagerDecision(action="start_task", task_id=task_id, run_at=None, reason="Default: start next planned task.")
 
     def chat(self, business_id: str, dept_type: str, user_message: str) -> str:
-        """User sends a message to the manager. Manager responds and may re-order task queue."""
+        """User sends a message to the manager. Manager responds and executes any actions."""
         dept_row = _load_dept_row(business_id, dept_type)
         history: list = dept_row.get("manager_chat_history") or []
         tasks = _load_dept_tasks(business_id, dept_type)
@@ -190,12 +190,17 @@ class DepartmentManager:
         system = (
             f"You are the {dept_type.replace('_', ' ').title()} department manager for a business. "
             f"Your department handles: {desc}. "
-            "You speak directly to the business owner. Be concise and practical. "
-            "If the user adjusts priorities or direction, acknowledge it and describe what you'll do differently. "
-            "You have visibility into the task queue and budget."
+            "You speak directly to the business owner. Be concise and practical.\n\n"
+            "You MUST always respond with valid JSON in this exact format:\n"
+            '{"reply": "your conversational response", "actions": []}\n\n'
+            "The actions array may contain task operations:\n"
+            '{"type": "create_task", "title": "Task title", "description": "Optional detail"}\n\n'
+            "If the user asks you to create, add, or queue any task, you MUST include it in actions. "
+            "If no actions are needed, return an empty array. "
+            "Never mention JSON in your reply text — speak naturally to the owner."
         )
         messages = []
-        for entry in history[-10:]:  # keep last 10 for context
+        for entry in history[-10:]:
             messages.append({"role": entry["role"], "content": entry["content"]})
 
         daily_remaining = budget.get("daily_remaining")
@@ -209,16 +214,42 @@ class DepartmentManager:
 
         resp = _client().messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=500,
+            max_tokens=600,
             system=system,
             messages=messages,
         )
-        reply = resp.content[0].text.strip()
+        raw = resp.content[0].text.strip()
 
-        # Persist chat history
+        # Parse structured response
+        try:
+            parsed = json.loads(raw)
+            reply = parsed.get("reply", raw)
+            actions = parsed.get("actions", [])
+        except (json.JSONDecodeError, AttributeError):
+            reply = raw
+            actions = []
+
+        # Execute actions
+        if actions:
+            db = get_supabase()
+            label_color = dept_row.get("label_color", "#6b7280")
+            for action in actions:
+                if action.get("type") == "create_task" and action.get("title"):
+                    db.table("tasks").insert({
+                        "business_id": business_id,
+                        "title": action["title"],
+                        "description": action.get("description", ""),
+                        "status": "planned",
+                        "assigned_to": "agent",
+                        "created_by": "agent",
+                        "department": dept_type,
+                        "label_color": label_color,
+                    }).execute()
+
+        # Persist chat history (store the natural reply, not raw JSON)
         history.append({"role": "user", "content": user_message})
         history.append({"role": "assistant", "content": reply})
-        _update_dept(business_id, dept_type, {"manager_chat_history": history[-40:]})  # keep last 40 messages
+        _update_dept(business_id, dept_type, {"manager_chat_history": history[-40:]})
 
         # Refresh narrative after chat
         self.update_narrative(business_id, dept_type)
