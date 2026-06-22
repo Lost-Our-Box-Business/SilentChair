@@ -1,4 +1,4 @@
-"""Activity logging and notification dispatch for agent actions."""
+"""Activity logging, notification dispatch, and pipeline resume for agent actions."""
 import uuid
 from datetime import datetime, timezone
 
@@ -7,6 +7,8 @@ import httpx
 from app.config import settings
 from app.db.client import get_supabase
 
+
+# ── Core logging ──────────────────────────────────────────────────────────────
 
 def log_action(
     business_id: str,
@@ -30,7 +32,8 @@ def log_action(
     return row_id
 
 
-def log_pipeline_run(business_id: str, pipeline_result: dict) -> None:
+def log_pipeline_run(business_id: str, pipeline_result: dict) -> str | None:
+    """Log all pipeline entries and return the activity_log_id of the approval entry (if any)."""
     for entry in pipeline_result.get("log", []):
         log_action(
             business_id=business_id,
@@ -40,12 +43,9 @@ def log_pipeline_run(business_id: str, pipeline_result: dict) -> None:
         )
 
     if pipeline_result.get("approval_required"):
-        # Store everything needed to resume after approval
         detail: dict = {}
-        # content_agency
         if pipeline_result.get("edited_articles"):
             detail["edited_articles"] = pipeline_result["edited_articles"]
-        # lead_gen / client_acquisition
         if pipeline_result.get("outreach_emails"):
             detail["outreach_emails"] = pipeline_result["outreach_emails"]
         if pipeline_result.get("qualified_leads"):
@@ -53,7 +53,7 @@ def log_pipeline_run(business_id: str, pipeline_result: dict) -> None:
         if pipeline_result.get("market_research"):
             detail["market_research"] = pipeline_result["market_research"]
 
-        log_action(
+        return log_action(
             business_id=business_id,
             agent_id=None,
             action_type="approval_required",
@@ -61,6 +61,8 @@ def log_pipeline_run(business_id: str, pipeline_result: dict) -> None:
             requires_approval=True,
             detail=detail,
         )
+
+    return None
 
 
 def get_activity_feed(business_id: str, limit: int = 50) -> list[dict]:
@@ -86,6 +88,139 @@ def approve_action(activity_id: str) -> dict:
     )
     return result.data[0] if result.data else {}
 
+
+# ── Business context loader (shared by router and tasks router) ───────────────
+
+def load_business_context(business_id: str) -> dict:
+    """Load full business execution context from DB. Raises ValueError if not found."""
+    db = get_supabase()
+    biz_result = db.table("businesses").select("*").eq("id", business_id).execute()
+    if not biz_result.data:
+        raise ValueError(f"Business not found: {business_id}")
+    biz = biz_result.data[0]
+
+    tools_result = (
+        db.table("agent_tools")
+        .select("tool_name,key_source,encrypted_key")
+        .eq("business_id", business_id)
+        .execute()
+    )
+    tool_keys: dict = {}
+    for row in tools_result.data:
+        if row["key_source"] == "user" and row.get("encrypted_key"):
+            tool_keys[row["tool_name"]] = row["encrypted_key"]
+        else:
+            tool_keys[row["tool_name"]] = None
+
+    dept_result = (
+        db.table("departments")
+        .select("dept_type")
+        .eq("business_id", business_id)
+        .eq("is_active", True)
+        .execute()
+    )
+    active_dept_types = [r["dept_type"] for r in dept_result.data]
+
+    return {
+        "business_profile": biz.get("profile", {}),
+        "autonomy": biz.get("autonomy", "major_decisions"),
+        "archetype": biz.get("archetype", "content_agency"),
+        "tool_keys": tool_keys,
+        "active_dept_types": active_dept_types,
+    }
+
+
+# ── Pipeline resume (shared by activity router and tasks router) ──────────────
+
+def do_pipeline_resume(activity_id: str, row: dict) -> None:
+    """Resume the halted pipeline after an activity is approved."""
+    business_id = row["business_id"]
+    detail = row.get("detail", {})
+
+    edited_articles = detail.get("edited_articles", [])
+    outreach_emails = detail.get("outreach_emails", [])
+
+    if not edited_articles and not outreach_emails:
+        return
+
+    ctx = load_business_context(business_id)
+
+    if edited_articles:
+        from app.agents.content_pipeline import PipelineState, build_content_pipeline
+        graph = build_content_pipeline()
+        partial_state: PipelineState = {
+            "business_id": business_id,
+            "business_profile": ctx["business_profile"],
+            "tool_keys": ctx["tool_keys"],
+            "autonomy": "full_auto",
+            "active_dept_types": ctx["active_dept_types"],
+            "research_topics": [],
+            "content_plan": [],
+            "drafted_articles": [],
+            "edited_articles": edited_articles,
+            "published_urls": [],
+            "social_posts": [],
+            "approval_required": False,
+            "approval_action": "",
+            "log": ["Resuming after manual approval"],
+            "error": None,
+        }
+        result = graph.invoke(partial_state, {"starting_node": "publish"})
+        log_pipeline_run(business_id, result)
+        notify(business_id, f"Published {len(result.get('published_urls', []))} article(s) after approval.")
+
+    elif outreach_emails:
+        archetype = ctx["archetype"]
+        if archetype == "lead_generation":
+            from app.agents.lead_gen_pipeline import LeadGenState, build_lead_gen_pipeline
+            graph = build_lead_gen_pipeline()
+            partial: LeadGenState = {
+                "business_id": business_id,
+                "business_profile": ctx["business_profile"],
+                "tool_keys": ctx["tool_keys"],
+                "autonomy": "full_auto",
+                "active_dept_types": ctx["active_dept_types"],
+                "market_research": detail.get("market_research", {}),
+                "leads": [],
+                "qualified_leads": detail.get("qualified_leads", []),
+                "outreach_emails": outreach_emails,
+                "sent_results": [],
+                "approval_required": False,
+                "approval_action": "",
+                "log": ["Resuming after approval"],
+                "error": None,
+            }
+            result = graph.invoke(partial, {"starting_node": "send_outreach"})
+        else:
+            from app.agents.client_acquisition_pipeline import ClientAcquisitionState, build_client_acquisition_pipeline
+            graph = build_client_acquisition_pipeline()
+            partial: ClientAcquisitionState = {
+                "business_id": business_id,
+                "business_profile": ctx["business_profile"],
+                "tool_keys": ctx["tool_keys"],
+                "autonomy": "full_auto",
+                "active_dept_types": ctx["active_dept_types"],
+                "market_research": detail.get("market_research", {}),
+                "leads": [],
+                "qualified_leads": detail.get("qualified_leads", []),
+                "outreach_emails": outreach_emails,
+                "sent_results": [],
+                "proposals": [],
+                "contracts": [],
+                "invoices": [],
+                "approval_required": False,
+                "approval_action": "",
+                "log": ["Resuming after approval"],
+                "error": None,
+            }
+            result = graph.invoke(partial, {"starting_node": "send_outreach"})
+
+        log_pipeline_run(business_id, result)
+        sent = len(result.get("sent_results", []))
+        notify(business_id, f"Sent {sent} outreach email(s) after approval.")
+
+
+# ── Notification dispatch ─────────────────────────────────────────────────────
 
 def _send_webhook(url: str, payload: dict) -> None:
     try:

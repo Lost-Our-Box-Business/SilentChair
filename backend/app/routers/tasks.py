@@ -1,12 +1,130 @@
-"""Task Board API — CRUD for tasks table."""
-from fastapi import APIRouter
+"""Task Board API — CRUD + approve for the tasks table."""
+import traceback
+from fastapi import APIRouter, HTTPException, Response
+from app.db.client import get_supabase
+from app.models.tasks import CreateTaskRequest, UpdateTaskStatusRequest, RejectTaskRequest
+from app.services.activity import approve_action, do_pipeline_resume
+from app.services import tasks_sync
 
-router = APIRouter()
+router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
-# GET  /api/tasks/{business_id}         → list[Task] (filterable by ?status= and ?department=)
-# POST /api/tasks/{business_id}         → Task (user-created task)
-# PATCH /api/tasks/{task_id}/status     → Task
-# POST /api/tasks/{task_id}/approve     → Task (awaiting_approval → completed, resumes pipeline)
-# DELETE /api/tasks/{task_id}           → 204
-# GET  /api/tasks/global/{user_id}      → list[Task] (all businesses, for global view)
+@router.get("/global/{user_id}")
+def get_global_tasks(user_id: str, business_id: str | None = None):
+    """All tasks across every business owned by this user."""
+    db = get_supabase()
+    # Collect business ids for this user
+    biz_result = db.table("businesses").select("id").eq("user_id", user_id).execute()
+    biz_ids = [r["id"] for r in biz_result.data]
+    if not biz_ids:
+        return []
+
+    if business_id and business_id in biz_ids:
+        biz_ids = [business_id]
+
+    all_tasks = []
+    for bid in biz_ids:
+        result = (
+            db.table("tasks")
+            .select("*, businesses(name)")
+            .eq("business_id", bid)
+            .order("created_at", desc=True)
+            .limit(200)
+            .execute()
+        )
+        all_tasks.extend(result.data)
+
+    all_tasks.sort(key=lambda t: t.get("created_at", ""), reverse=True)
+    return all_tasks
+
+
+@router.get("/{business_id}")
+def get_tasks(business_id: str, status: str | None = None, department: str | None = None):
+    db = get_supabase()
+    q = db.table("tasks").select("*").eq("business_id", business_id)
+    if status:
+        q = q.eq("status", status)
+    if department:
+        q = q.eq("department", department)
+    result = q.order("created_at", desc=True).limit(200).execute()
+    return result.data
+
+
+@router.post("/{business_id}")
+def create_task(business_id: str, req: CreateTaskRequest):
+    db = get_supabase()
+    result = db.table("tasks").insert({
+        "business_id": business_id,
+        "title": req.title,
+        "description": req.description,
+        "department": req.department,
+        "status": "planned",
+        "created_by": "user",
+        "label_color": "#6b7280",
+    }).execute()
+    if not result.data:
+        raise HTTPException(status_code=500, detail="Failed to create task")
+    return result.data[0]
+
+
+@router.patch("/{task_id}/status")
+def update_task_status(task_id: str, req: UpdateTaskStatusRequest):
+    db = get_supabase()
+    result = db.table("tasks").update({"status": req.status}).eq("id", task_id).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return result.data[0]
+
+
+@router.post("/{task_id}/approve")
+def approve_task(task_id: str):
+    """Approve a blocked task. Resumes the linked pipeline if one exists."""
+    db = get_supabase()
+    task_result = db.table("tasks").select("*").eq("id", task_id).execute()
+    if not task_result.data:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    task = task_result.data[0]
+    if task.get("status") != "awaiting_approval":
+        raise HTTPException(status_code=400, detail="Task is not awaiting approval")
+
+    activity_log_id = task.get("activity_log_id")
+    if activity_log_id:
+        row_result = db.table("activity_log").select("*").eq("id", activity_log_id).execute()
+        if row_result.data:
+            row = row_result.data[0]
+            if not row.get("approved_at"):
+                try:
+                    approve_action(activity_log_id)
+                    do_pipeline_resume(activity_log_id, row)
+                except Exception:
+                    traceback.print_exc()
+
+    result = db.table("tasks").update({"status": "completed"}).eq("id", task_id).execute()
+    return result.data[0] if result.data else task
+
+
+@router.post("/{task_id}/reject")
+def reject_task(task_id: str, req: RejectTaskRequest):
+    """Reject a blocked task. Marks it failed and stores the reason."""
+    db = get_supabase()
+    task_result = db.table("tasks").select("*").eq("id", task_id).execute()
+    if not task_result.data:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    task = task_result.data[0]
+    if task.get("status") != "awaiting_approval":
+        raise HTTPException(status_code=400, detail="Task is not awaiting approval")
+
+    result = db.table("tasks").update({
+        "status": "failed",
+        "output": f"Rejected: {req.reason}",
+    }).eq("id", task_id).execute()
+    return result.data[0] if result.data else task
+
+
+@router.delete("/{task_id}")
+def delete_task(task_id: str):
+    db = get_supabase()
+    db.table("tasks").delete().eq("id", task_id).execute()
+    return Response(status_code=204)

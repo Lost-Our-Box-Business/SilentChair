@@ -30,3 +30,7 @@ class CreateTaskRequest(BaseModel):
 
 class UpdateTaskStatusRequest(BaseModel):
     status: str
+
+
+class RejectTaskRequest(BaseModel):
+    reason: str

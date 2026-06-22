@@ -2,55 +2,19 @@
 from fastapi import APIRouter, HTTPException
 
 from app.db.client import get_supabase
-from app.services.activity import get_activity_feed, approve_action, log_pipeline_run, notify
+from app.services.activity import (
+    get_activity_feed, approve_action, log_pipeline_run,
+    notify, load_business_context, do_pipeline_resume,
+)
+from app.services import tasks_sync
 
 router = APIRouter(tags=["activity"])
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _load_business_context(business_id: str) -> dict:
-    db = get_supabase()
-
-    biz_result = db.table("businesses").select("*").eq("id", business_id).execute()
-    if not biz_result.data:
-        raise HTTPException(status_code=404, detail="Business not found")
-    biz = biz_result.data[0]
-
-    tools_result = (
-        db.table("agent_tools")
-        .select("tool_name,key_source,encrypted_key")
-        .eq("business_id", business_id)
-        .execute()
-    )
-    tool_keys: dict = {}
-    for row in tools_result.data:
-        if row["key_source"] == "user" and row.get("encrypted_key"):
-            tool_keys[row["tool_name"]] = row["encrypted_key"]
-        else:
-            tool_keys[row["tool_name"]] = None
-
-    dept_result = (
-        db.table("departments")
-        .select("dept_type")
-        .eq("business_id", business_id)
-        .eq("is_active", True)
-        .execute()
-    )
-    active_dept_types = [r["dept_type"] for r in dept_result.data]
-
-    return {
-        "business_profile": biz.get("profile", {}),
-        "autonomy": biz.get("autonomy", "major_decisions"),
-        "archetype": biz.get("archetype", "content_agency"),
-        "tool_keys": tool_keys,
-        "active_dept_types": active_dept_types,
-    }
-
-
 def _run_pipeline_for_archetype(business_id: str, ctx: dict) -> dict:
     archetype = ctx["archetype"]
-
     if archetype == "lead_generation":
         from app.agents.lead_gen_pipeline import run_lead_gen_pipeline
         return run_lead_gen_pipeline(
@@ -81,7 +45,6 @@ def _run_pipeline_for_archetype(business_id: str, ctx: dict) -> dict:
 
 
 def _pipeline_summary(result: dict, archetype: str) -> dict:
-    """Normalize pipeline result into a consistent response shape."""
     base = {
         "status": "awaiting_approval" if result.get("approval_required") else "complete",
         "approval_action": result.get("approval_action"),
@@ -101,6 +64,19 @@ def _pipeline_summary(result: dict, archetype: str) -> dict:
         base["contracts"] = [{"company": c["company"], "title": c["title"]} for c in result.get("contracts", [])]
         base["invoices"] = [{"company": i["company"], "title": i["title"], "amount": i.get("amount", 0)} for i in result.get("invoices", [])]
     return base
+
+
+def _notify_completion(business_id: str, archetype: str, result: dict) -> None:
+    if archetype == "content_agency":
+        n = len(result.get("published_urls", []))
+        notify(business_id, f"Pipeline complete. Published {n} article(s).")
+    elif archetype == "lead_generation":
+        n = len(result.get("sent_results", []))
+        notify(business_id, f"Lead gen complete. Sent {n} outreach email(s).")
+    elif archetype == "client_acquisition":
+        sent = len(result.get("sent_results", []))
+        contracts = len(result.get("contracts", []))
+        notify(business_id, f"Acquisition pipeline complete. {sent} emails sent, {contracts} contract(s) drafted.")
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -124,99 +100,17 @@ async def approve(activity_id: str):
         raise HTTPException(status_code=400, detail="Already approved")
 
     updated = approve_action(activity_id)
-    business_id = row["business_id"]
-
-    # For content_agency: resume publish from held edited_articles
-    detail = row.get("detail", {})
-    edited_articles = detail.get("edited_articles", [])
-    if edited_articles:
-        ctx = _load_business_context(business_id)
-        from app.agents.content_pipeline import PipelineState, build_content_pipeline
-        graph = build_content_pipeline()
-        partial_state: PipelineState = {
-            "business_id": business_id,
-            "business_profile": ctx["business_profile"],
-            "tool_keys": ctx["tool_keys"],
-            "autonomy": "full_auto",
-            "active_dept_types": ctx["active_dept_types"],
-            "research_topics": [],
-            "content_plan": [],
-            "drafted_articles": [],
-            "edited_articles": edited_articles,
-            "published_urls": [],
-            "social_posts": [],
-            "approval_required": False,
-            "approval_action": "",
-            "log": ["Resuming after manual approval"],
-            "error": None,
-        }
-        result = graph.invoke(partial_state, {"starting_node": "publish"})
-        log_pipeline_run(business_id, result)
-        notify(business_id, f"Published {len(result.get('published_urls', []))} article(s) after approval.")
-
-    # For lead_gen / client_acquisition: resume send_outreach from held emails
-    outreach_emails = detail.get("outreach_emails", [])
-    if outreach_emails:
-        ctx = _load_business_context(business_id)
-        archetype = ctx["archetype"]
-
-        if archetype == "lead_generation":
-            from app.agents.lead_gen_pipeline import LeadGenState, build_lead_gen_pipeline
-            graph = build_lead_gen_pipeline()
-            partial: LeadGenState = {
-                "business_id": business_id,
-                "business_profile": ctx["business_profile"],
-                "tool_keys": ctx["tool_keys"],
-                "autonomy": "full_auto",
-                "active_dept_types": ctx["active_dept_types"],
-                "market_research": detail.get("market_research", {}),
-                "leads": [],
-                "qualified_leads": detail.get("qualified_leads", []),
-                "outreach_emails": outreach_emails,
-                "sent_results": [],
-                "approval_required": False,
-                "approval_action": "",
-                "log": ["Resuming after approval"],
-                "error": None,
-            }
-            result = graph.invoke(partial, {"starting_node": "send_outreach"})
-        else:
-            from app.agents.client_acquisition_pipeline import ClientAcquisitionState, build_client_acquisition_pipeline
-            graph = build_client_acquisition_pipeline()
-            partial: ClientAcquisitionState = {
-                "business_id": business_id,
-                "business_profile": ctx["business_profile"],
-                "tool_keys": ctx["tool_keys"],
-                "autonomy": "full_auto",
-                "active_dept_types": ctx["active_dept_types"],
-                "market_research": detail.get("market_research", {}),
-                "leads": [],
-                "qualified_leads": detail.get("qualified_leads", []),
-                "outreach_emails": outreach_emails,
-                "sent_results": [],
-                "proposals": [],
-                "contracts": [],
-                "invoices": [],
-                "approval_required": False,
-                "approval_action": "",
-                "log": ["Resuming after approval"],
-                "error": None,
-            }
-            result = graph.invoke(partial, {"starting_node": "send_outreach"})
-
-        log_pipeline_run(business_id, result)
-        sent = len(result.get("sent_results", []))
-        notify(business_id, f"Sent {sent} outreach email(s) after approval.")
-
+    do_pipeline_resume(activity_id, row)
+    tasks_sync.complete_pipeline_task(activity_id)
     return updated
 
 
 @router.post("/pipeline/run/{business_id}")
 async def run_pipeline(business_id: str):
     try:
-        ctx = _load_business_context(business_id)
-    except HTTPException:
-        raise
+        ctx = load_business_context(business_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -225,24 +119,16 @@ async def run_pipeline(business_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Pipeline error: {e}")
 
-    log_pipeline_run(business_id, result)
+    activity_log_id = log_pipeline_run(business_id, result)
 
     if result.get("approval_required"):
         notify(business_id, result.get("approval_action", "Action requires approval"), requires_approval=True)
     else:
         _notify_completion(business_id, ctx["archetype"], result)
 
+    try:
+        tasks_sync.create_pipeline_task(business_id, ctx["archetype"], result, activity_log_id)
+    except Exception:
+        pass
+
     return _pipeline_summary(result, ctx["archetype"])
-
-
-def _notify_completion(business_id: str, archetype: str, result: dict) -> None:
-    if archetype == "content_agency":
-        n = len(result.get("published_urls", []))
-        notify(business_id, f"Pipeline complete. Published {n} article(s).")
-    elif archetype == "lead_generation":
-        n = len(result.get("sent_results", []))
-        notify(business_id, f"Lead gen complete. Sent {n} outreach email(s).")
-    elif archetype == "client_acquisition":
-        sent = len(result.get("sent_results", []))
-        contracts = len(result.get("contracts", []))
-        notify(business_id, f"Acquisition pipeline complete. {sent} emails sent, {contracts} contract(s) drafted.")
