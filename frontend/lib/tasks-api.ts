@@ -56,6 +56,19 @@ export async function approveTask(taskId: string): Promise<Task> {
   return res.json();
 }
 
+export async function updateTask(
+  taskId: string,
+  data: { title?: string; description?: string; department?: string }
+): Promise<Task> {
+  const res = await fetch(`${API_URL}/api/tasks/${taskId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to update task");
+  return res.json();
+}
+
 export async function rejectTask(taskId: string, reason: string): Promise<Task> {
   const res = await fetch(`${API_URL}/api/tasks/${taskId}/reject`, {
     method: "POST",

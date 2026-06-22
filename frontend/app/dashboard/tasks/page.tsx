@@ -47,6 +47,10 @@ export default function GlobalTasksPage() {
     await reload();
   }
 
+  function handleUpdated(updated: Task) {
+    setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+  }
+
   const businesses = Array.from(
     new Map(
       tasks
@@ -88,6 +92,7 @@ export default function GlobalTasksPage() {
           tasks={filtered}
           onApprove={handleApprove}
           onReject={handleReject}
+          onUpdated={handleUpdated}
           showBusiness={bizFilter === "all" && businesses.length > 1}
         />
       )}

@@ -2,7 +2,7 @@
 import traceback
 from fastapi import APIRouter, HTTPException, Response
 from app.db.client import get_supabase
-from app.models.tasks import CreateTaskRequest, UpdateTaskStatusRequest, RejectTaskRequest
+from app.models.tasks import CreateTaskRequest, UpdateTaskStatusRequest, RejectTaskRequest, UpdateTaskRequest
 from app.services.activity import approve_action, do_pipeline_resume
 from app.services import tasks_sync
 
@@ -64,6 +64,18 @@ def create_task(business_id: str, req: CreateTaskRequest):
     }).execute()
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to create task")
+    return result.data[0]
+
+
+@router.patch("/{task_id}")
+def update_task(task_id: str, req: UpdateTaskRequest):
+    db = get_supabase()
+    updates = {k: v for k, v in req.model_dump().items() if v is not None}
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    result = db.table("tasks").update(updates).eq("id", task_id).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Task not found")
     return result.data[0]
 
 

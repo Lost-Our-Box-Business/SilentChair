@@ -3,14 +3,17 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, CheckCircle2, XCircle, ChevronDown, Trash2 } from "lucide-react";
-import type { Task } from "@/lib/tasks-api";
+import { Loader2, CheckCircle2, XCircle, ChevronDown, Trash2, Pencil } from "lucide-react";
+import { updateTask, type Task } from "@/lib/tasks-api";
+
+const DEPARTMENTS = ["Marketing", "Lead Generation", "Client Acquisition", "Other"];
 
 interface Props {
   task: Task;
   onApprove?: (id: string) => Promise<void>;
   onReject?: (id: string, reason: string) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
+  onUpdated?: (updated: Task) => void;
   businessName?: string;
 }
 
@@ -31,8 +34,14 @@ function formatCost(n: number): string {
   return `$${n.toFixed(4)}`;
 }
 
-export function TaskCard({ task, onApprove, onReject, onDelete, businessName }: Props) {
+export function TaskCard({ task, onApprove, onReject, onDelete, onUpdated, businessName }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(task.title);
+  const [editDesc, setEditDesc] = useState(task.description ?? "");
+  const [editDept, setEditDept] = useState(task.department ?? "");
+  const [saving, setSaving] = useState(false);
+
   const [approving, setApproving] = useState(false);
   const [approveDone, setApproveDone] = useState(false);
   const [rejecting, setRejecting] = useState(false);
@@ -45,6 +54,32 @@ export function TaskCard({ task, onApprove, onReject, onDelete, businessName }: 
   const isFailed = task.status === "failed";
   const isCompleted = task.status === "completed";
   const actionsBusy = approveDone || rejectDone;
+  const canEdit = task.created_by === "user";
+
+  async function handleSave(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!editTitle.trim() || saving) return;
+    setSaving(true);
+    try {
+      const updated = await updateTask(task.id, {
+        title: editTitle.trim(),
+        description: editDesc.trim() || undefined,
+        department: editDept || undefined,
+      });
+      onUpdated?.(updated);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleCancelEdit(e: React.MouseEvent) {
+    e.stopPropagation();
+    setEditTitle(task.title);
+    setEditDesc(task.description ?? "");
+    setEditDept(task.department ?? "");
+    setEditing(false);
+  }
 
   async function handleApprove() {
     if (!onApprove || approving) return;
@@ -70,123 +105,171 @@ export function TaskCard({ task, onApprove, onReject, onDelete, businessName }: 
 
   return (
     <div
-      onClick={() => setExpanded((v) => !v)}
+      onClick={() => { if (!editing) setExpanded((v) => !v); }}
       className={`rounded-lg border bg-card text-card-foreground shadow-sm text-sm cursor-pointer transition-colors
         ${isBlocked && !actionsBusy ? "border-amber-400 bg-amber-50/60 dark:bg-amber-950/20" : "border-border"}
         ${isFailed ? "border-red-400/60 bg-red-50/60 dark:bg-red-950/20" : ""}
       `}
     >
       <div className="p-3 space-y-2">
-        {/* Top row: dept dot + label + Manual badge + chevron + time */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 min-w-0">
-            {task.label_color && (
-              <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: task.label_color }} />
-            )}
-            {task.department && (
-              <span className="text-[10px] text-muted-foreground truncate">{task.department}</span>
-            )}
-            {task.created_by === "user" && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">Manual</span>
-            )}
+
+        {/* Edit mode */}
+        {editing ? (
+          <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+            <Input
+              className="h-8 text-sm"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              placeholder="Task title"
+              autoFocus
+            />
+            <textarea
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring placeholder:text-muted-foreground"
+              rows={3}
+              value={editDesc}
+              onChange={(e) => setEditDesc(e.target.value)}
+              placeholder="Description (optional)"
+            />
+            <select
+              value={editDept}
+              onChange={(e) => setEditDept(e.target.value)}
+              className="w-full h-8 rounded-md border border-input bg-background px-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="">No department</option>
+              {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <div className="flex gap-1.5 justify-end">
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={handleCancelEdit}>
+                Cancel
+              </Button>
+              <Button size="sm" className="h-7 text-xs" onClick={handleSave} disabled={!editTitle.trim() || saving}>
+                {saving && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                Save
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[10px] text-muted-foreground tabular-nums">{timeAgo(task.created_at)}</span>
-            <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`} />
-          </div>
-        </div>
+        ) : (
+          <>
+            {/* Top row: dept dot + label + Manual badge + chevron + time */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                {task.label_color && (
+                  <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: task.label_color }} />
+                )}
+                {task.department && (
+                  <span className="text-[10px] text-muted-foreground truncate">{task.department}</span>
+                )}
+                {task.created_by === "user" && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">Manual</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[10px] text-muted-foreground tabular-nums">{timeAgo(task.created_at)}</span>
+                <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`} />
+              </div>
+            </div>
 
-        {/* Business name (global view) */}
-        {businessName && <p className="text-[10px] text-muted-foreground">{businessName}</p>}
+            {/* Business name (global view) */}
+            {businessName && <p className="text-[10px] text-muted-foreground">{businessName}</p>}
 
-        {/* Title */}
-        <p className={`font-medium leading-snug ${isFailed ? "text-red-600 dark:text-red-400" : ""}`}>
-          {task.title}
-        </p>
-
-        {/* Expanded: description + delete */}
-        {expanded && (
-          <div className="border-t pt-2 mt-1 space-y-2" onClick={(e) => e.stopPropagation()}>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {task.description || <span className="italic">No description</span>}
+            {/* Title */}
+            <p className={`font-medium leading-snug ${isFailed ? "text-red-600 dark:text-red-400" : ""}`}>
+              {task.title}
             </p>
-            {onDelete && (
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-red-600 transition-colors"
-              >
-                {deleting
-                  ? <Loader2 className="h-3 w-3 animate-spin" />
-                  : <Trash2 className="h-3 w-3" />}
-                Delete task
-              </button>
-            )}
-          </div>
-        )}
 
-        {/* Cost on completed */}
-        {isCompleted && task.cost_usd > 0 && (
-          <p className="text-[10px] text-muted-foreground font-mono">{formatCost(task.cost_usd)}</p>
-        )}
-
-        {/* Rejection reason */}
-        {isFailed && task.output?.startsWith("Rejected:") && (
-          <p className="text-[10px] text-muted-foreground italic">{task.output}</p>
-        )}
-
-        {/* Approve / Reject */}
-        {isBlocked && !actionsBusy && (
-          <div onClick={(e) => e.stopPropagation()}>
-            {rejectOpen ? (
-              <div className="space-y-1.5">
-                <Input
-                  className="h-7 text-xs"
-                  placeholder="Reason for rejection"
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleReject(); if (e.key === "Escape") setRejectOpen(false); }}
-                  autoFocus
-                />
-                <div className="flex gap-1.5">
-                  <Button size="sm" variant="destructive" className="h-7 text-xs flex-1"
-                    onClick={handleReject} disabled={!rejectReason.trim() || rejecting}>
-                    {rejecting && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                    Confirm reject
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-7 text-xs"
-                    onClick={() => { setRejectOpen(false); setRejectReason(""); }}>
-                    Cancel
-                  </Button>
+            {/* Expanded: description + actions */}
+            {expanded && (
+              <div className="border-t pt-2 mt-1 space-y-2" onClick={(e) => e.stopPropagation()}>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {task.description || <span className="italic">No description</span>}
+                </p>
+                <div className="flex items-center gap-3">
+                  {canEdit && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setEditing(true); setExpanded(false); }}
+                      className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Pencil className="h-3 w-3" /> Edit
+                    </button>
+                  )}
+                  {onDelete && (
+                    <button
+                      onClick={handleDelete}
+                      disabled={deleting}
+                      className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-red-600 transition-colors"
+                    >
+                      {deleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                      Delete
+                    </button>
+                  )}
                 </div>
               </div>
-            ) : (
-              <div className="flex gap-1.5">
-                <Button size="sm" variant="outline"
-                  className="h-7 text-xs flex-1 border-amber-400 hover:bg-amber-500/10"
-                  onClick={handleApprove} disabled={approving}>
-                  {approving && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                  {approving ? "Approving…" : "Approve & send"}
-                </Button>
-                <Button size="sm" variant="ghost"
-                  className="h-7 text-xs text-muted-foreground hover:text-red-600 hover:bg-red-500/10"
-                  onClick={() => setRejectOpen(true)}>
-                  Reject
-                </Button>
+            )}
+
+            {/* Cost on completed */}
+            {isCompleted && task.cost_usd > 0 && (
+              <p className="text-[10px] text-muted-foreground font-mono">{formatCost(task.cost_usd)}</p>
+            )}
+
+            {/* Rejection reason */}
+            {isFailed && task.output?.startsWith("Rejected:") && (
+              <p className="text-[10px] text-muted-foreground italic">{task.output}</p>
+            )}
+
+            {/* Approve / Reject */}
+            {isBlocked && !actionsBusy && (
+              <div onClick={(e) => e.stopPropagation()}>
+                {rejectOpen ? (
+                  <div className="space-y-1.5">
+                    <Input
+                      className="h-7 text-xs"
+                      placeholder="Reason for rejection"
+                      value={rejectReason}
+                      onChange={(e) => setRejectReason(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") handleReject(); if (e.key === "Escape") setRejectOpen(false); }}
+                      autoFocus
+                    />
+                    <div className="flex gap-1.5">
+                      <Button size="sm" variant="destructive" className="h-7 text-xs flex-1"
+                        onClick={handleReject} disabled={!rejectReason.trim() || rejecting}>
+                        {rejecting && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                        Confirm reject
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs"
+                        onClick={() => { setRejectOpen(false); setRejectReason(""); }}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-1.5">
+                    <Button size="sm" variant="outline"
+                      className="h-7 text-xs flex-1 border-amber-400 hover:bg-amber-500/10"
+                      onClick={handleApprove} disabled={approving}>
+                      {approving && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                      {approving ? "Approving…" : "Approve & send"}
+                    </Button>
+                    <Button size="sm" variant="ghost"
+                      className="h-7 text-xs text-muted-foreground hover:text-red-600 hover:bg-red-500/10"
+                      onClick={() => setRejectOpen(true)}>
+                      Reject
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
 
-        {approveDone && (
-          <p className="text-[11px] text-green-600 flex items-center gap-1">
-            <CheckCircle2 className="h-3 w-3" /> Approved
-          </p>
-        )}
-        {rejectDone && (
-          <p className="text-[11px] text-red-600 flex items-center gap-1">
-            <XCircle className="h-3 w-3" /> Rejected
-          </p>
+            {approveDone && (
+              <p className="text-[11px] text-green-600 flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" /> Approved
+              </p>
+            )}
+            {rejectDone && (
+              <p className="text-[11px] text-red-600 flex items-center gap-1">
+                <XCircle className="h-3 w-3" /> Rejected
+              </p>
+            )}
+          </>
         )}
       </div>
     </div>

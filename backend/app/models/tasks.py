@@ -34,3 +34,9 @@ class UpdateTaskStatusRequest(BaseModel):
 
 class RejectTaskRequest(BaseModel):
     reason: str
+
+
+class UpdateTaskRequest(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    department: Optional[str] = None

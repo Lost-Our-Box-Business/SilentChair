@@ -51,6 +51,10 @@ export default function BusinessTasksPage() {
     await loadTasks();
   }
 
+  function handleUpdated(updated: Task) {
+    setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+  }
+
   async function handleCreate() {
     if (!newTitle.trim()) return;
     setCreating(true);
@@ -95,6 +99,7 @@ export default function BusinessTasksPage() {
           onApprove={handleApprove}
           onReject={handleReject}
           onDelete={handleDelete}
+          onUpdated={handleUpdated}
           onAddTask={() => setDialogOpen(true)}
         />
       )}
