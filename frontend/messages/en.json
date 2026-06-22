@@ -12,7 +12,8 @@
     "signOut": "Sign out",
     "subTasks": "Tasks",
     "subWebsite": "Website",
-    "subCoach": "Coach"
+    "subCoach": "Coach",
+    "subAgents": "Agents"
   },
   "taskBoard": {
     "planned": "Planned",
@@ -225,5 +226,42 @@
   "coach": {
     "title": "Business Coach",
     "comingSoon": "Coach scheduling coming in Phase 9."
+  },
+  "agentsPage": {
+    "title": "Agents",
+    "subtitle": "Your AI workforce — manage and monitor all departments",
+    "start": "Start",
+    "pause": "Pause",
+    "resume": "Resume",
+    "starting": "Starting…",
+    "pausing": "Pausing…",
+    "resuming": "Resuming…",
+    "lastRun": "Last run",
+    "nextEval": "Next check",
+    "todayCost": "Today",
+    "noDepts": "No departments configured. Complete onboarding to set up your workforce.",
+    "viewDept": "View department",
+    "statusActive": "Active",
+    "statusIdle": "Idle",
+    "statusPaused": "Paused"
+  },
+  "deptPage": {
+    "narrative": "Department Status",
+    "narrativeEmpty": "No status yet. Start the agents to begin.",
+    "chatTitle": "Chat with Manager",
+    "chatPlaceholder": "Message the manager… (e.g. \"Focus on SEO this week\")",
+    "sending": "Sending…",
+    "taskBoard": "Task Board",
+    "pendingApprovals": "Pending Approvals",
+    "approve": "Approve",
+    "reject": "Reject",
+    "approving": "Approving…",
+    "rejecting": "Rejecting…",
+    "noApprovals": "No pending approvals.",
+    "rejectReason": "Reason (optional)",
+    "backToAgents": "← Agents",
+    "lastRun": "Last run",
+    "nextEval": "Next check",
+    "todayCost": "Today's cost"
   }
 }

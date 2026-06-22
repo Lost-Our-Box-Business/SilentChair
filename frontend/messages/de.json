@@ -12,7 +12,8 @@
     "signOut": "Abmelden",
     "subTasks": "Aufgaben",
     "subWebsite": "Webseite",
-    "subCoach": "Coach"
+    "subCoach": "Coach",
+    "subAgents": "Agenten"
   },
   "taskBoard": {
     "planned": "Geplant",
@@ -225,5 +226,42 @@
   "coach": {
     "title": "Business-Coach",
     "comingSoon": "Coach-Terminplanung kommt in Phase 9."
+  },
+  "agentsPage": {
+    "title": "Agenten",
+    "subtitle": "Ihre KI-Belegschaft — verwalten und überwachen Sie alle Abteilungen",
+    "start": "Starten",
+    "pause": "Pausieren",
+    "resume": "Fortsetzen",
+    "starting": "Startet…",
+    "pausing": "Pausiert…",
+    "resuming": "Fortsetzen…",
+    "lastRun": "Letzter Lauf",
+    "nextEval": "Nächste Prüfung",
+    "todayCost": "Heute",
+    "noDepts": "Keine Abteilungen konfiguriert.",
+    "viewDept": "Abteilung anzeigen",
+    "statusActive": "Aktiv",
+    "statusIdle": "Inaktiv",
+    "statusPaused": "Pausiert"
+  },
+  "deptPage": {
+    "narrative": "Abteilungsstatus",
+    "narrativeEmpty": "Noch kein Status. Starten Sie die Agenten.",
+    "chatTitle": "Chat mit dem Manager",
+    "chatPlaceholder": "Nachricht an den Manager…",
+    "sending": "Wird gesendet…",
+    "taskBoard": "Aufgabenboard",
+    "pendingApprovals": "Ausstehende Genehmigungen",
+    "approve": "Genehmigen",
+    "reject": "Ablehnen",
+    "approving": "Genehmigung…",
+    "rejecting": "Ablehnung…",
+    "noApprovals": "Keine ausstehenden Genehmigungen.",
+    "rejectReason": "Grund (optional)",
+    "backToAgents": "← Agenten",
+    "lastRun": "Letzter Lauf",
+    "nextEval": "Nächste Prüfung",
+    "todayCost": "Heutige Kosten"
   }
 }

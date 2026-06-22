@@ -1,4 +1,9 @@
-"""Pipeline execution service — shared by activity and tasks routers."""
+"""Pipeline execution service — thin wrapper around DepartmentRunner.
+
+Kept for backward compatibility: existing callers (routers/activity.py,
+routers/tasks.py) call execute() and get the same summary dict they always did.
+All new code should use department_runner directly.
+"""
 from app.db.client import get_supabase
 from app.services.activity import (
     load_business_context, log_pipeline_run, notify,

@@ -12,7 +12,8 @@
     "signOut": "退出登录",
     "subTasks": "任务",
     "subWebsite": "网站",
-    "subCoach": "教练"
+    "subCoach": "教练",
+    "subAgents": "代理"
   },
   "taskBoard": {
     "planned": "计划中",
@@ -225,5 +226,42 @@
   "coach": {
     "title": "业务教练",
     "comingSoon": "教练预约功能将在第9阶段推出。"
+  },
+  "agentsPage": {
+    "title": "代理",
+    "subtitle": "您的AI员工 — 管理和监控所有部门",
+    "start": "启动",
+    "pause": "暂停",
+    "resume": "恢复",
+    "starting": "启动中…",
+    "pausing": "暂停中…",
+    "resuming": "恢复中…",
+    "lastRun": "上次运行",
+    "nextEval": "下次检查",
+    "todayCost": "今日",
+    "noDepts": "未配置部门。",
+    "viewDept": "查看部门",
+    "statusActive": "活跃",
+    "statusIdle": "空闲",
+    "statusPaused": "已暂停"
+  },
+  "deptPage": {
+    "narrative": "部门状态",
+    "narrativeEmpty": "暂无状态。启动代理以开始。",
+    "chatTitle": "与经理聊天",
+    "chatPlaceholder": "向经理发送消息…",
+    "sending": "发送中…",
+    "taskBoard": "任务看板",
+    "pendingApprovals": "待审批",
+    "approve": "批准",
+    "reject": "拒绝",
+    "approving": "审批中…",
+    "rejecting": "拒绝中…",
+    "noApprovals": "没有待审批项。",
+    "rejectReason": "原因（可选）",
+    "backToAgents": "← 代理",
+    "lastRun": "上次运行",
+    "nextEval": "下次检查",
+    "todayCost": "今日费用"
   }
 }

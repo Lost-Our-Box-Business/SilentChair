@@ -12,7 +12,8 @@
     "signOut": "Sair",
     "subTasks": "Tarefas",
     "subWebsite": "Site",
-    "subCoach": "Coach"
+    "subCoach": "Coach",
+    "subAgents": "Agentes"
   },
   "taskBoard": {
     "planned": "Planejado",
@@ -225,5 +226,42 @@
   "coach": {
     "title": "Coach de negócios",
     "comingSoon": "O agendamento de coach vem na Fase 9."
+  },
+  "agentsPage": {
+    "title": "Agentes",
+    "subtitle": "Sua força de trabalho de IA — gerencie e monitore todos os departamentos",
+    "start": "Iniciar",
+    "pause": "Pausar",
+    "resume": "Retomar",
+    "starting": "Iniciando…",
+    "pausing": "Pausando…",
+    "resuming": "Retomando…",
+    "lastRun": "Última execução",
+    "nextEval": "Próxima verificação",
+    "todayCost": "Hoje",
+    "noDepts": "Nenhum departamento configurado.",
+    "viewDept": "Ver departamento",
+    "statusActive": "Ativo",
+    "statusIdle": "Inativo",
+    "statusPaused": "Pausado"
+  },
+  "deptPage": {
+    "narrative": "Status do departamento",
+    "narrativeEmpty": "Sem status ainda. Inicie os agentes para começar.",
+    "chatTitle": "Chat com o gerente",
+    "chatPlaceholder": "Envie uma mensagem ao gerente…",
+    "sending": "Enviando…",
+    "taskBoard": "Quadro de tarefas",
+    "pendingApprovals": "Aprovações pendentes",
+    "approve": "Aprovar",
+    "reject": "Rejeitar",
+    "approving": "Aprovando…",
+    "rejecting": "Rejeitando…",
+    "noApprovals": "Sem aprovações pendentes.",
+    "rejectReason": "Motivo (opcional)",
+    "backToAgents": "← Agentes",
+    "lastRun": "Última execução",
+    "nextEval": "Próxima verificação",
+    "todayCost": "Custo de hoje"
   }
 }

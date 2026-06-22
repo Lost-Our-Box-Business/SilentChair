@@ -22,7 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LayoutDashboard, Building2, Users, ListTodo, BarChart3, Settings, ChevronsUpDown, LogOut, Plus, Globe, KanbanSquare, UserRound } from "lucide-react";
+import { LayoutDashboard, Building2, Users, ListTodo, BarChart3, Settings, ChevronsUpDown, LogOut, Plus, Globe, KanbanSquare, UserRound, Bot } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useTranslations } from "next-intl";
 
@@ -93,6 +93,15 @@ export function AppSidebar({ userEmail, businesses = [] }: AppSidebarProps) {
                 </SidebarMenuButton>
                 {pathname.startsWith(`/dashboard/business/${biz.id}`) && (
                   <SidebarMenuSub>
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton
+                        isActive={pathname.startsWith(`/dashboard/business/${biz.id}/agents`) || pathname.startsWith(`/dashboard/business/${biz.id}/departments`)}
+                        onClick={() => router.push(`/dashboard/business/${biz.id}/agents`)}
+                      >
+                        <Bot className="h-3.5 w-3.5" />
+                        <span>{t("subAgents")}</span>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
                     <SidebarMenuSubItem>
                       <SidebarMenuSubButton
                         isActive={pathname === `/dashboard/business/${biz.id}/tasks`}

@@ -1,97 +1,59 @@
-"""Celery tasks for scheduled pipeline runs."""
+"""Celery tasks for scheduled and on-demand agent execution."""
 from celery.schedules import crontab
 
 from app.worker import celery_app
-from app.db.client import get_supabase
-from app.services.activity import log_pipeline_run, notify
 
 
-def _load_context(business_id: str) -> dict | None:
-    db = get_supabase()
-
-    biz_result = db.table("businesses").select("*").eq("id", business_id).execute()
-    if not biz_result.data:
-        return None
-    biz = biz_result.data[0]
-
-    tools_result = (
-        db.table("agent_tools")
-        .select("tool_name,key_source,encrypted_key")
-        .eq("business_id", business_id)
-        .execute()
-    )
-    tool_keys: dict = {}
-    for row in tools_result.data:
-        if row["key_source"] == "user" and row.get("encrypted_key"):
-            tool_keys[row["tool_name"]] = row["encrypted_key"]
-        else:
-            tool_keys[row["tool_name"]] = None
-
-    dept_result = (
-        db.table("departments")
-        .select("dept_type")
-        .eq("business_id", business_id)
-        .eq("is_active", True)
-        .execute()
-    )
-    return {
-        "profile": biz.get("profile", {}),
-        "autonomy": biz.get("autonomy", "major_decisions"),
-        "archetype": biz.get("archetype", "content_agency"),
-        "tool_keys": tool_keys,
-        "active_dept_types": [r["dept_type"] for r in dept_result.data],
-    }
+@celery_app.task(name="app.tasks.pipeline.run_tick")
+def run_tick() -> dict:
+    """
+    Main heartbeat — runs every 5 minutes.
+    Delegates to DepartmentRunner.tick() which:
+    1. Resumes in-progress tasks whose resume_at has passed (agent micro-scheduling)
+    2. Triggers manager.evaluate() for departments whose manager_next_eval_at has passed
+    """
+    from app.services.department_runner import tick
+    triggered = tick()
+    return {"triggered": triggered}
 
 
-def _run(business_id: str, ctx: dict) -> dict:
-    archetype = ctx["archetype"]
-    kwargs = dict(
-        business_id=business_id,
-        business_profile=ctx["profile"],
-        tool_keys=ctx["tool_keys"],
-        autonomy=ctx["autonomy"],
-        active_dept_types=ctx["active_dept_types"],
-    )
-    if archetype == "lead_generation":
-        from app.agents.lead_gen_pipeline import run_lead_gen_pipeline
-        return run_lead_gen_pipeline(**kwargs)
-    elif archetype == "client_acquisition":
-        from app.agents.client_acquisition_pipeline import run_client_acquisition_pipeline
-        return run_client_acquisition_pipeline(**kwargs)
-    else:
-        from app.agents.content_pipeline import run_content_pipeline
-        return run_content_pipeline(**kwargs)
+@celery_app.task(name="app.tasks.pipeline.start_agent_task")
+def start_agent_task(business_id: str, dept_type: str, task_id: str, locale: str = "en") -> dict:
+    """Start a specific planned agent task. Scheduled by DepartmentRunner when manager decides."""
+    from app.services.department_runner import run_task
+    try:
+        result = run_task(business_id, dept_type, task_id=task_id, locale=locale)
+        return {"status": result.status, "task_id": result.task_id}
+    except Exception as e:
+        return {"error": str(e)}
 
 
+@celery_app.task(name="app.tasks.pipeline.resume_agent_task")
+def resume_agent_task(business_id: str, dept_type: str, task_id: str, locale: str = "en") -> dict:
+    """Resume an in-progress agent task after its requested delay (micro-scheduling)."""
+    from app.services.department_runner import run_task
+    try:
+        result = run_task(business_id, dept_type, task_id=task_id, locale=locale)
+        return {"status": result.status, "task_id": result.task_id}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# Legacy task kept for backward compatibility with any existing Celery queue items
 @celery_app.task(bind=True, name="app.tasks.pipeline.run_pipeline_for_business")
 def run_pipeline_for_business(self, business_id: str) -> dict:
-    ctx = _load_context(business_id)
-    if not ctx:
-        return {"error": "Business not found"}
-
-    result = _run(business_id, ctx)
-    log_pipeline_run(business_id, result)
-
-    if result.get("approval_required"):
-        notify(business_id, result.get("approval_action", "Action requires approval"), requires_approval=True)
-    else:
-        notify(business_id, f"Scheduled pipeline complete for archetype: {ctx['archetype']}")
-
-    return {"status": "awaiting_approval" if result.get("approval_required") else "complete"}
-
-
-@celery_app.task(name="app.tasks.pipeline.run_all_active_pipelines")
-def run_all_active_pipelines() -> dict:
-    db = get_supabase()
-    result = db.table("businesses").select("id").eq("status", "active").execute()
-    for row in result.data:
-        run_pipeline_for_business.delay(row["id"])
-    return {"triggered": len(result.data)}
+    """Deprecated: use DepartmentRunner.start() instead. Kept for queue drain."""
+    from app.services.department_runner import start
+    try:
+        start(business_id)
+        return {"status": "started"}
+    except Exception as e:
+        return {"error": str(e)}
 
 
 celery_app.conf.beat_schedule = {
-    "daily-pipeline": {
-        "task": "app.tasks.pipeline.run_all_active_pipelines",
-        "schedule": crontab(hour=6, minute=0),
+    "agent-tick": {
+        "task": "app.tasks.pipeline.run_tick",
+        "schedule": crontab(minute="*/5"),
     },
 }
