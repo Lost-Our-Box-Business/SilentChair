@@ -198,10 +198,12 @@ class DepartmentManager:
         for entry in history[-10:]:  # keep last 10 for context
             messages.append({"role": entry["role"], "content": entry["content"]})
 
+        daily_remaining = budget.get("daily_remaining")
+        budget_str = "unlimited" if daily_remaining is None else f"${daily_remaining:.4f}"
         task_context = (
             f"Current planned tasks: {[t['title'] for t in tasks['planned'][:5]]}\n"
             f"In progress: {[t['title'] for t in tasks['in_progress']]}\n"
-            f"Budget remaining today: {'unlimited' if budget.get('daily_remaining') is None else f'${budget[\"daily_remaining\"]:.4f}'}"
+            f"Budget remaining today: {budget_str}"
         )
         messages.append({"role": "user", "content": f"{task_context}\n\nOwner says: {user_message}"})
 
