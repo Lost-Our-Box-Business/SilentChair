@@ -164,8 +164,16 @@ def execute(
         db.table("tasks").update({"status": "in_progress"}) \
             .in_("id", tracking_ids).execute()
 
-    # Run pipeline
-    result = _run_for_archetype(business_id, ctx)
+    # Run pipeline — reset tasks to failed if an exception escapes
+    try:
+        result = _run_for_archetype(business_id, ctx)
+    except Exception as e:
+        if tracking_ids:
+            db.table("tasks").update({
+                "status": "failed",
+                "output": f"Pipeline error: {str(e)[:500]}",
+            }).in_("id", tracking_ids).execute()
+        raise
 
     # Log pipeline run
     activity_log_id = log_pipeline_run(business_id, result)

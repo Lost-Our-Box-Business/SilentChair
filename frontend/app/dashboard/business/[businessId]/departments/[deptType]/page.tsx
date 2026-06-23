@@ -86,6 +86,18 @@ export default function DepartmentPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Poll every 10 seconds so the task board updates without manual refresh
+  useEffect(() => {
+    const id = setInterval(() => {
+      getTasks(businessId).then((data) => {
+        setTasks(data.filter((t) => t.department?.toLowerCase().replace(/\s+/g, "_") === deptType ||
+          t.department?.toLowerCase() === deptType.replace(/_/g, " ")));
+      }).catch(() => {});
+      getDeptApprovalQueue(businessId, deptType).then(setQueue).catch(() => {});
+    }, 10000);
+    return () => clearInterval(id);
+  }, [businessId, deptType]);
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatHistory]);

@@ -25,8 +25,10 @@ class ApprovalAction(BaseModel):
 
 @router.get("/{business_id}/{dept_type}")
 def get_department(business_id: str, dept_type: str):
-    """Return full department details including narrative and manager chat history."""
+    """Return full department details including narrative, chat history, and today's cost."""
     try:
+        from app.services.cost_tracker import get_today_spend
+        from app.services.department_runner import AGENT_REGISTRY
         db = get_supabase()
         row = (
             db.table("departments")
@@ -39,6 +41,11 @@ def get_department(business_id: str, dept_type: str):
         )
         if not row:
             raise HTTPException(status_code=404, detail="Department not found")
+        spend = get_today_spend(business_id)
+        by_dept = spend.get("by_dept", {})
+        agent_cls = AGENT_REGISTRY.get(dept_type)
+        row["today_cost_usd"] = by_dept.get(dept_type, 0.0)
+        row["label_color"] = row.get("label_color") or (agent_cls.label_color if agent_cls else "#6b7280")
         return row
     except HTTPException:
         raise

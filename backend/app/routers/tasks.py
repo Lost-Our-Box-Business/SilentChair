@@ -146,7 +146,7 @@ def approve_task(task_id: str):
 
 @router.post("/{task_id}/reject")
 def reject_task(task_id: str, req: RejectTaskRequest):
-    """Reject a blocked task. Marks it failed and stores the reason."""
+    """Reject a blocked task. Returns it to planned with rejection notes so the agent can retry."""
     db = get_supabase()
     task_result = db.table("tasks").select("*").eq("id", task_id).execute()
     if not task_result.data:
@@ -156,10 +156,27 @@ def reject_task(task_id: str, req: RejectTaskRequest):
     if task.get("status") != "awaiting_approval":
         raise HTTPException(status_code=400, detail="Task is not awaiting approval")
 
+    rejection_note = f"[Rejected: {req.reason}]" if req.reason else "[Rejected by user]"
+    existing_desc = task.get("description") or ""
+    new_desc = f"{rejection_note}\n\n{existing_desc}".strip() if existing_desc else rejection_note
+
     result = db.table("tasks").update({
-        "status": "failed",
-        "output": f"Rejected: {req.reason}",
+        "status": "planned",
+        "description": new_desc,
+        "output": None,
     }).eq("id", task_id).execute()
+
+    # Trigger manager re-evaluation so it can assign the task again
+    dept_type = task.get("department")
+    business_id = task.get("business_id")
+    if dept_type and business_id:
+        try:
+            from app.services import department_manager
+            department_manager.evaluate(business_id, dept_type)
+            department_manager.update_narrative(business_id, dept_type)
+        except Exception:
+            traceback.print_exc()
+
     return result.data[0] if result.data else task
 
 
