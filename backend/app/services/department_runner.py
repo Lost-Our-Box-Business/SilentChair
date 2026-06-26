@@ -89,6 +89,20 @@ def run_task(
     agent = AgentClass()
     context = asyncio.run(agent.get_business_context(business_id))
 
+    # Inject the assigned task so agents can read what they're supposed to do
+    if task_id:
+        db = get_supabase()
+        task_row = (
+            db.table("tasks").select("id,title,description")
+            .eq("id", task_id).single().execute().data
+        )
+        if task_row:
+            context.profile["current_task"] = {
+                "id": task_id,
+                "title": task_row.get("title", ""),
+                "description": task_row.get("description", ""),
+            }
+
     # Inject locale instruction
     if locale and locale != "en":
         from app.services.pipeline_runner import LANGUAGE_NAMES

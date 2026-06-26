@@ -24,6 +24,8 @@ class LeadGenState(TypedDict):
     tool_keys: dict
     autonomy: str
     active_dept_types: list[str]
+    task_instruction: str   # what the manager assigned; drives routing and research focus
+    pipeline_mode: str      # 'research_only' | 'leads_only' | 'full' (set by route_by_task)
 
     market_research: dict
     leads: list[dict]
@@ -131,10 +133,36 @@ Per-dept remaining: {json.dumps({k: round(v, 4) for k, v in dept_remaining.items
 
 # ── Nodes ─────────────────────────────────────────────────────────────────────
 
+def route_by_task_node(state: LeadGenState) -> dict:
+    """Read task_instruction and set pipeline_mode to control which nodes run."""
+    instruction = (state.get("task_instruction") or "").lower()
+    log = list(state["log"])
+
+    research_keywords = ("plan", "research", "strategy", "analyze", "analysis", "overview", "report")
+    leads_keywords = ("find leads", "identify companies", "discover", "prospect", "find companies")
+    outreach_keywords = ("send", "outreach", "email", "contact", "reach out")
+
+    if any(k in instruction for k in outreach_keywords):
+        mode = "full"
+        log.append(f"Task router: outreach task detected → full pipeline")
+    elif any(k in instruction for k in leads_keywords):
+        mode = "leads_only"
+        log.append(f"Task router: lead-finding task detected → research + qualify only")
+    elif any(k in instruction for k in research_keywords) and not any(k in instruction for k in leads_keywords + outreach_keywords):
+        mode = "research_only"
+        log.append(f"Task router: research/planning task detected → market research only")
+    else:
+        mode = "full"
+        log.append(f"Task router: default → full pipeline")
+
+    return {"pipeline_mode": mode, "log": log}
+
+
 def research_market_node(state: LeadGenState) -> dict:
     profile = state["business_profile"]
     niche = profile.get("niche", "")
     audience = profile.get("target_audience", "")
+    task_instruction = state.get("task_instruction", "")
     log = list(state["log"])
     bid = state["business_id"]
 
@@ -153,6 +181,8 @@ def research_market_node(state: LeadGenState) -> dict:
         except Exception as e:
             log.append(f"Market research: search failed ({e}), using AI analysis")
 
+    task_context = f"Current task: {task_instruction}\n\n" if task_instruction else ""
+
     market_research = _json_call(
         _cheap_llm(),
         """You are a B2B market research analyst. Return a JSON object with:
@@ -161,8 +191,9 @@ def research_market_node(state: LeadGenState) -> dict:
 - pain_points (list of 3-5 strings): key pain points of the target audience
 - decision_makers (list of 2-3 strings): typical job titles to contact
 - company_size (str): ideal company size range (e.g. "10-200 employees")
+- summary (str): 2-3 sentence strategic summary of the market opportunity
 Return ONLY valid JSON.""",
-        f"""Business: {profile.get('name')} | Niche: {niche}
+        f"""{task_context}Business: {profile.get('name')} | Niche: {niche}
 Target audience: {audience}
 Goals: {profile.get('goals', '')}
 {"Search context: " + raw_research if raw_research else ""}
@@ -181,6 +212,7 @@ Define the ideal client profile for this business.""",
 def find_leads_node(state: LeadGenState) -> dict:
     profile = state["business_profile"]
     market = state["market_research"]
+    task_instruction = state.get("task_instruction", "")
     log = list(state["log"])
     bid = state["business_id"]
 
@@ -190,39 +222,50 @@ def find_leads_node(state: LeadGenState) -> dict:
     if serper_key:
         try:
             industries = " OR ".join(market.get("target_industries", [profile.get("niche", "")])[:2])
-            query = f'{industries} companies {market.get("company_size", "")} looking for {profile.get("niche", "")}'
-            results = serper.search(query, num_results=8, api_key=serper_key)
+            query = f'{industries} companies {market.get("company_size", "")} {profile.get("niche", "")}'
+            results = serper.search(query, num_results=10, api_key=serper_key)
             raw_results = json.dumps(results)
-            log.append("Lead finding: searched for matching companies via Serper")
+            log.append("Lead finding: searched for real companies via Serper")
         except Exception as e:
-            log.append(f"Lead finding: search failed ({e}), generating AI leads")
+            log.append(f"Lead finding: search failed ({e})")
+
+    if not raw_results:
+        log.append("Lead finding: no search results available — skipping lead extraction")
+        return {"leads": [], "log": log}
+
+    task_context = f"Task context: {task_instruction}\n\n" if task_instruction else ""
 
     leads_raw = _json_call(
         _cheap_llm(),
-        """You are a lead research specialist. Return a JSON array of 5-8 leads.
-Each lead must have:
-- name (str): contact person full name
-- company (str): company name
-- email (str): estimated email (use common patterns like firstname@company.com or info@company.com — mark as estimated)
-- title (str): job title
-- industry (str): industry
-- source (str): how this lead was identified
-- notes (str): 1 sentence on why this is a good fit
+        """You are a B2B lead researcher. Extract real company information ONLY from the
+search results provided. Do NOT invent, generate, or guess any companies not found
+in the results. Do NOT add email addresses or individual contact names — these are
+not available from search results and must not be fabricated.
 
-Return ONLY valid JSON array.""",
-        f"""ICP: {market.get('icp', '')}
+For each real company found in the results, return a JSON object with:
+- company (str): company name exactly as it appears in the search result
+- website (str): URL from the search result
+- industry (str): industry inferred from the snippet
+- size_hint (str): company size if mentioned in the snippet, otherwise ""
+- relevance_reason (str): 1 sentence explaining why this company matches the ICP
+- source_snippet (str): the relevant portion of the Serper snippet for this company
+
+Return ONLY a valid JSON array. If fewer than 5 real companies appear in the results,
+return only those found — never pad with invented entries.""",
+        f"""{task_context}ICP: {market.get('icp', '')}
 Target industries: {', '.join(market.get('target_industries', []))}
-Decision makers: {', '.join(market.get('decision_makers', []))}
 Company size: {market.get('company_size', '')}
-{"Search results: " + raw_results if raw_results else ""}
 
-Generate 5-8 realistic leads matching this ICP.""",
+Search results from Serper:
+{raw_results}
+
+Extract only companies that actually appear in the search results above.""",
         business_id=bid,
         dept_type="lead_research",
     )
 
     leads = leads_raw if isinstance(leads_raw, list) else []
-    log.append(f"Lead finding: identified {len(leads)} potential leads")
+    log.append(f"Lead finding: extracted {len(leads)} real companies from search results")
     return {"leads": leads, "log": log}
 
 
@@ -239,8 +282,8 @@ def qualify_leads_node(state: LeadGenState) -> dict:
 
     scored = _json_call(
         _cheap_llm(),
-        """You are a sales qualification expert. Score each lead 1-10 against the ICP.
-Return a JSON array with the original lead data plus:
+        """You are a sales qualification expert. Score each company 1-10 against the ICP.
+Return a JSON array with the original company data plus:
 - score (int 1-10): qualification score
 - qualification_reason (str): 1 sentence explaining the score
 - qualified (bool): true if score >= 6
@@ -251,7 +294,7 @@ Pain points: {', '.join(market.get('pain_points', []))}
 Business offering: {profile.get('niche', '')} for {profile.get('target_audience', '')}
 Goals: {profile.get('goals', '')}
 
-Leads to score: {json.dumps(leads)}""",
+Companies to score: {json.dumps(leads)}""",
         business_id=bid,
         dept_type="lead_qualification",
     )
@@ -271,7 +314,7 @@ def draft_outreach_node(state: LeadGenState) -> dict:
     bid = state["business_id"]
 
     if not leads:
-        log.append("Outreach drafting: no qualified leads to draft for")
+        log.append("Outreach drafting: no qualified companies to draft for")
         return {"outreach_emails": [], "log": log}
 
     emails = []
@@ -280,16 +323,18 @@ def draft_outreach_node(state: LeadGenState) -> dict:
         result = _json_call(
             _llm(temperature=0.7),
             f"""You are a sales copywriter for a {profile.get('niche')} business.
-Write a short, personalized cold outreach email.
+Write a short, company-targeted cold outreach email template.
+Use {{{{first_name}}}} as a placeholder for the contact's first name (to be filled in manually).
 Return JSON with:
 - subject (str): compelling subject line (under 60 chars)
-- body_html (str): email body as HTML, 3-4 short paragraphs, no fluff, ends with clear CTA
+- body_html (str): email body as HTML, 3-4 short paragraphs, ends with clear CTA
 - preview_text (str): 1-sentence preview (for email clients)
 
-Keep the email concise, specific, and human. Mention the company and a relevant pain point.""",
+Mention the company by name and a relevant pain point. Keep it concise and human.""",
             f"""Sender: {profile.get('name')} — {profile.get('niche')} business
-Lead: {lead.get('name')} at {lead.get('company')} ({lead.get('title')})
-Why they're a fit: {lead.get('qualification_reason', lead.get('notes', ''))}
+Target company: {lead.get('company')} ({lead.get('industry', '')})
+Website: {lead.get('website', '')}
+Why they're a fit: {lead.get('qualification_reason', lead.get('relevance_reason', ''))}
 Key pain point to address: {market.get('pain_points', [''])[0]}
 Tone: {profile.get('tone_of_voice', 'professional but approachable')}""",
             business_id=bid,
@@ -297,15 +342,21 @@ Tone: {profile.get('tone_of_voice', 'professional but approachable')}""",
         )
         if isinstance(result, dict):
             emails.append({
-                "to_name": lead.get("name", ""),
-                "to_email": lead.get("email", ""),
+                "to_name": "{first_name}",
+                "to_email": "",
+                "company": lead.get("company", ""),
+                "website": lead.get("website", ""),
                 "subject": result.get("subject", f"Quick question for {lead.get('company', '')}"),
                 "body_html": result.get("body_html", ""),
                 "preview_text": result.get("preview_text", ""),
                 "lead_data": lead,
+                "contact_needed": True,
             })
 
-    log.append(f"Outreach: drafted {len(emails)} personalized emails")
+    log.append(
+        f"Outreach: drafted {len(emails)} email template(s). "
+        "Add verified contact emails via CRM to send outreach."
+    )
     return {"outreach_emails": emails, "log": log}
 
 
@@ -330,35 +381,41 @@ def send_outreach_node(state: LeadGenState) -> dict:
 
     for item in emails:
         lead_data = item.get("lead_data", {})
+        to_email = item.get("to_email", "")
+        company = item.get("company") or lead_data.get("company", "")
 
+        # Save to CRM as a prospect (no email yet — contact research needed)
         try:
             lead_id = crm_tool.save_lead(
                 business_id=business_id,
-                name=lead_data.get("name", item["to_name"]),
-                company=lead_data.get("company", ""),
-                email=item["to_email"],
+                name=company,
+                company=company,
+                email=to_email or "",
                 source=lead_data.get("source", "pipeline"),
                 score=lead_data.get("score", 0),
-                notes=lead_data.get("qualification_reason", lead_data.get("notes", "")),
-                status="contacted",
+                notes=lead_data.get("qualification_reason", lead_data.get("relevance_reason", "")),
+                status="prospect" if not to_email else "contacted",
             )
         except Exception as e:
-            log.append(f"CRM: failed to save lead {item['to_name']} ({e})")
+            log.append(f"CRM: failed to save {company} ({e})")
             lead_id = None
 
+        if not to_email:
+            log.append(f"Outreach: {company} saved to CRM as prospect — contact email needed to send")
+            sent_results.append({"company": company, "status": "contact_needed", "lead_id": lead_id})
+            continue
+
         result = email_outreach.send_outreach_email(
-            to_email=item["to_email"],
-            to_name=item["to_name"],
+            to_email=to_email,
+            to_name=item.get("to_name", ""),
             subject=item["subject"],
             body_html=item["body_html"],
             from_name=profile.get("name", "SilentChair"),
         )
-        result["to_email"] = item["to_email"]
+        result["to_email"] = to_email
         result["lead_id"] = lead_id
         sent_results.append(result)
-
-        status = result.get("status", "unknown")
-        log.append(f"Outreach: email to {item['to_name']} at {lead_data.get('company', '')} — {status}")
+        log.append(f"Outreach: email to {company} — {result.get('status', 'unknown')}")
 
     return {"sent_results": sent_results, "log": log}
 
@@ -366,7 +423,21 @@ def send_outreach_node(state: LeadGenState) -> dict:
 # ── Routing ───────────────────────────────────────────────────────────────────
 
 def route_after_budget(state: LeadGenState) -> str:
-    return "research_market" if state.get("active_dept_types") else END
+    return "route_by_task" if state.get("active_dept_types") else END
+
+
+def route_after_research(state: LeadGenState) -> str:
+    mode = state.get("pipeline_mode", "full")
+    if mode == "research_only":
+        return END
+    return "find_leads"
+
+
+def route_after_qualify(state: LeadGenState) -> str:
+    mode = state.get("pipeline_mode", "full")
+    if mode == "leads_only":
+        return END
+    return "draft_outreach"
 
 
 def route_after_gate(state: LeadGenState) -> str:
@@ -378,6 +449,7 @@ def route_after_gate(state: LeadGenState) -> str:
 def build_lead_gen_pipeline() -> StateGraph:
     graph = StateGraph(LeadGenState)
     graph.add_node("budget_coordinator", budget_coordinator_node)
+    graph.add_node("route_by_task", route_by_task_node)
     graph.add_node("research_market", research_market_node)
     graph.add_node("find_leads", find_leads_node)
     graph.add_node("qualify_leads", qualify_leads_node)
@@ -386,10 +458,11 @@ def build_lead_gen_pipeline() -> StateGraph:
     graph.add_node("send_outreach", send_outreach_node)
 
     graph.set_entry_point("budget_coordinator")
-    graph.add_conditional_edges("budget_coordinator", route_after_budget, {"research_market": "research_market", END: END})
-    graph.add_edge("research_market", "find_leads")
+    graph.add_conditional_edges("budget_coordinator", route_after_budget, {"route_by_task": "route_by_task", END: END})
+    graph.add_edge("route_by_task", "research_market")
+    graph.add_conditional_edges("research_market", route_after_research, {"find_leads": "find_leads", END: END})
     graph.add_edge("find_leads", "qualify_leads")
-    graph.add_edge("qualify_leads", "draft_outreach")
+    graph.add_conditional_edges("qualify_leads", route_after_qualify, {"draft_outreach": "draft_outreach", END: END})
     graph.add_edge("draft_outreach", "autonomy_gate")
     graph.add_conditional_edges("autonomy_gate", route_after_gate, {"send_outreach": "send_outreach", END: END})
     graph.add_edge("send_outreach", END)
@@ -411,6 +484,8 @@ def run_lead_gen_pipeline(
         "tool_keys": tool_keys,
         "autonomy": autonomy,
         "active_dept_types": active_dept_types,
+        "task_instruction": business_profile.get("task_instruction", ""),
+        "pipeline_mode": "full",
         "market_research": {},
         "leads": [],
         "qualified_leads": [],

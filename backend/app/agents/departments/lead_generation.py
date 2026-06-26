@@ -10,11 +10,26 @@ class LeadGenerationAgent(BaseDepartmentAgent):
     cadence_hours = 12  # runs twice daily
 
     async def run(self, business_id: str, context: BusinessContext) -> DeptResult:
-        task_id = await self.create_task(
-            business_id,
-            "Lead generation pipeline run",
-            "Market research, lead qualification, and outreach email drafting.",
+        current_task = context.profile.pop("current_task", None)
+
+        if current_task:
+            task_id = current_task["id"]
+            task_title = current_task["title"]
+            task_desc = current_task.get("description", "")
+            await self.update_task(task_id, "in_progress")
+        else:
+            task_id = await self.create_task(
+                business_id,
+                "Lead generation pipeline run",
+                "Market research, lead qualification, and outreach email drafting.",
+            )
+            task_title = "Lead generation pipeline run"
+            task_desc = ""
+
+        context.profile["task_instruction"] = (
+            f"{task_title}: {task_desc}".strip(": ") if task_desc else task_title
         )
+
         try:
             result = await asyncio.to_thread(
                 run_lead_gen_pipeline,
