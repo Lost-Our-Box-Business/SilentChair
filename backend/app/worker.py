@@ -18,7 +18,10 @@ celery_app.conf.update(
     accept_content=["json"],
     timezone="UTC",
     enable_utc=True,
-    task_track_started=True,
+    # Don't store task results in Redis — all state is tracked in Supabase.
+    # This is the biggest lever for staying under Upstash's free-tier request limit.
+    task_ignore_result=True,
+    result_expires=300,
     broker_use_ssl=_ssl_opts,
     redis_backend_use_ssl=_ssl_opts,
 )
