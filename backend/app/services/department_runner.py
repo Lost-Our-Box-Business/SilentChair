@@ -152,25 +152,19 @@ def run_task(
 def _schedule_resume(
     business_id: str, dept_type: str, task_id: str, run_at: datetime, locale: str
 ) -> None:
-    """Schedule a Celery task to resume an in-progress agent task at run_at."""
-    from app.tasks.pipeline import resume_agent_task
-    eta_seconds = max(0, (run_at - datetime.now(timezone.utc)).total_seconds())
-    resume_agent_task.apply_async(
-        args=[business_id, dept_type, task_id, locale],
-        countdown=int(eta_seconds),
-    )
+    """Schedule an agent task to resume at run_at using a daemon thread timer."""
+    import threading
+    delay = max(0.0, (run_at - datetime.now(timezone.utc)).total_seconds())
+    threading.Timer(delay, run_task, args=[business_id, dept_type, task_id, locale]).start()
 
 
 def _schedule_task(
     business_id: str, dept_type: str, task_id: str, run_at: datetime, locale: str
 ) -> None:
-    """Schedule a Celery task to start a planned task at run_at."""
-    from app.tasks.pipeline import start_agent_task
-    eta_seconds = max(0, (run_at - datetime.now(timezone.utc)).total_seconds())
-    start_agent_task.apply_async(
-        args=[business_id, dept_type, task_id, locale],
-        countdown=int(eta_seconds),
-    )
+    """Schedule a planned task to start at run_at using a daemon thread timer."""
+    import threading
+    delay = max(0.0, (run_at - datetime.now(timezone.utc)).total_seconds())
+    threading.Timer(delay, run_task, args=[business_id, dept_type, task_id, locale]).start()
 
 
 def start(business_id: str, locale: str = "en") -> None:

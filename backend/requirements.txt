@@ -16,9 +16,8 @@ langchain-core>=0.3.30
 # Anthropic SDK
 anthropic>=0.49.0
 
-# Celery + Redis
-celery>=5.4.0
-redis>=5.2.1
+# Scheduler (replaces Celery+Redis — no broker needed)
+apscheduler>=3.10.0
 
 # HTTP client
 httpx>=0.27.2
