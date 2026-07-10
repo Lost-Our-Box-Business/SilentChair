@@ -5,6 +5,38 @@
 
 ---
 
+## Standing Rules (Lessons Learned — Always Follow)
+
+Rules discovered from real bugs. Check this before writing new components or backend logic.
+
+### TypeScript / React
+
+- **`!!` prefix for `unknown` fields in JSX conditions.** Any field from a `Record<string, unknown>` type (e.g., `lead.email`, `mr?.icp`) is typed `unknown`. Using it directly as a JSX condition (e.g., `{lead.email && <p>…</p>}`) causes a Vercel build error: `Type 'unknown' is not assignable to type 'ReactNode'`. Always write `{!!lead.email && <p>…</p>}`. Affects any component that renders dynamic data from JSONB columns.
+
+- **Check `frontend/components/ui/` before importing a UI component.** Not all shadcn components are installed. If a component file doesn't exist there, use a native HTML element instead (e.g., `<input type="checkbox">` instead of `<Checkbox>`).
+
+### Backend / LLM
+
+- **Strip markdown code fences before `json.loads()`.** Claude models sometimes wrap JSON output in ` ```json … ``` ` even when instructed not to. Always strip fences before parsing. Pattern:
+  ```python
+  clean = raw.strip()
+  if clean.startswith("```"):
+      lines = clean.splitlines()
+      inner = lines[1:] if len(lines) > 1 else lines
+      if inner and inner[-1].strip() == "```":
+          inner = inner[:-1]
+      clean = "\n".join(inner).strip()
+  parsed = json.loads(clean)
+  ```
+
+- **After creating a task from manager chat, trigger evaluation immediately.** Inserting a `planned` task row does not execute it — the background scheduler only fires on its own cadence. After any `create_task` action in `department_manager.chat()`, spin up a background thread to call `evaluate()` then `run_task()` so the agent picks it up right away.
+
+### Git / Deployment
+
+- **Always update `PROGRESS.md` before committing roadmap work.** CLAUDE.md rule. Prior sessions missed this for out-of-band fixes; they had to be added retroactively in separate commits.
+
+---
+
 ## Pre-Roadmap Baseline (Live at June 2026)
 
 These were already built and deployed before the roadmap was written.
