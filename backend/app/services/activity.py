@@ -32,6 +32,23 @@ def log_action(
     return row_id
 
 
+def _detail_for_log_entry(summary: str, result: dict) -> dict:
+    """Attach relevant structured data to a pipeline log entry based on its content."""
+    s = summary.lower()
+    if "lead finding" in s or "find leads" in s or "extracted" in s:
+        return {"leads": result.get("leads", [])}
+    if "qualif" in s:
+        return {
+            "leads": result.get("leads", []),
+            "qualified_leads": result.get("qualified_leads", []),
+        }
+    if "market research" in s:
+        return {"market_research": result.get("market_research", {})}
+    if "outreach drafting" in s or ("draft" in s and "outreach" in s):
+        return {"outreach_emails": result.get("outreach_emails", [])}
+    return {}
+
+
 def log_pipeline_run(business_id: str, pipeline_result: dict) -> str | None:
     """Log all pipeline entries and return the activity_log_id of the approval entry (if any)."""
     for entry in pipeline_result.get("log", []):
@@ -40,6 +57,7 @@ def log_pipeline_run(business_id: str, pipeline_result: dict) -> str | None:
             agent_id=None,
             action_type="pipeline_log",
             summary=entry,
+            detail=_detail_for_log_entry(entry, pipeline_result),
         )
 
     if pipeline_result.get("approval_required"):

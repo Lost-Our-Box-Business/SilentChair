@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import {
   Play, Loader2, CheckCircle2, Clock, AlertCircle, RefreshCw, ExternalLink,
-  Users, FileText, Receipt, DollarSign, Settings, Eye,
+  Users, FileText, Receipt, DollarSign, Settings, Eye, ChevronDown, ChevronUp,
 } from "lucide-react";
 import {
   getActivityFeed, runPipeline,
@@ -21,6 +21,7 @@ import { ApprovalReviewSheet } from "@/components/tasks/ApprovalReviewSheet";
 import { useLocale, useTranslations } from "next-intl";
 import { getBudgetState, type BudgetState } from "@/lib/usage-api";
 import { BusinessOverviewCard } from "@/components/dashboard/BusinessOverviewCard";
+import { ActivityDetailPanel } from "@/components/activity/ActivityDetailPanel";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -136,6 +137,7 @@ export default function BusinessDetailPage() {
     proposals_contracts: t("deptProposalsContracts"), billing: t("deptBilling"),
   };
 
+  const [expandedActivityId, setExpandedActivityId] = useState<string | null>(null);
   const [feed, setFeed] = useState<ActivityEntry[]>([]);
   const [pendingTasks, setPendingTasks] = useState<Task[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -318,23 +320,44 @@ export default function BusinessDetailPage() {
             ) : feed.length === 0 ? (
               <Card><CardContent className="py-12 text-center"><p className="text-sm text-muted-foreground">{t("noActivity")}</p></CardContent></Card>
             ) : (
-              feed.slice(0, 30).map((entry) => (
-                <div key={entry.id} className="flex items-start gap-3 rounded-lg border px-3 py-2.5">
-                  {entry.requires_approval && !entry.approved_at
-                    ? <AlertCircle className="h-4 w-4 text-yellow-500 shrink-0 mt-0.5" />
-                    : entry.approved_at
-                    ? <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
-                    : <Clock className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm leading-snug">{entry.summary}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <Badge variant="outline" className="text-[10px] px-1 py-0">{actionTypeLabel(entry.action_type)}</Badge>
-                      <span className="text-xs text-muted-foreground">{timeAgo(entry.created_at)}</span>
-                      {entry.approved_at && <span className="text-xs text-green-600">{t("approved")} {timeAgo(entry.approved_at)}</span>}
-                    </div>
+              feed.slice(0, 30).map((entry) => {
+                const isExpanded = expandedActivityId === entry.id;
+                return (
+                  <div key={entry.id} className="rounded-lg border overflow-hidden">
+                    <button
+                      onClick={() => setExpandedActivityId(isExpanded ? null : entry.id)}
+                      className="w-full flex items-start gap-3 px-3 py-2.5 text-left hover:bg-muted/30 transition-colors focus-visible:outline-none"
+                    >
+                      {entry.requires_approval && !entry.approved_at
+                        ? <AlertCircle className="h-4 w-4 text-yellow-500 shrink-0 mt-0.5" />
+                        : entry.approved_at
+                        ? <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                        : <Clock className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm leading-snug">{entry.summary}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <Badge variant="outline" className="text-[10px] px-1 py-0">{actionTypeLabel(entry.action_type)}</Badge>
+                          <span className="text-xs text-muted-foreground">{timeAgo(entry.created_at)}</span>
+                          {entry.approved_at && <span className="text-xs text-green-600">{t("approved")} {timeAgo(entry.approved_at)}</span>}
+                        </div>
+                      </div>
+                      {isExpanded
+                        ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                        : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />}
+                    </button>
+                    {isExpanded && (
+                      <div className="px-3 pb-3">
+                        <ActivityDetailPanel
+                          detail={entry.detail}
+                          actionType={entry.action_type}
+                          summary={entry.summary}
+                          businessId={businessId}
+                        />
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}

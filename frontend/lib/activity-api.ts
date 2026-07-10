@@ -12,6 +12,7 @@ export type OutreachEmail = {
 export type ActivityDetail = {
   outreach_emails?: OutreachEmail[];
   edited_articles?: Array<{ title: string; content: string; meta_description: string; slug: string }>;
+  leads?: Record<string, unknown>[];
   qualified_leads?: Record<string, unknown>[];
   market_research?: Record<string, unknown>;
 };
