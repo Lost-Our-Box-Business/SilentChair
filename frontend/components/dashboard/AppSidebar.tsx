@@ -22,7 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LayoutDashboard, Building2, Users, ListTodo, BarChart3, Settings, ChevronsUpDown, LogOut, Plus, Globe, KanbanSquare, UserRound, Bot } from "lucide-react";
+import { LayoutDashboard, Building2, Users, ListTodo, BarChart3, Settings, ChevronsUpDown, LogOut, Plus, Globe, KanbanSquare, UserRound, Bot, CheckSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useTranslations } from "next-intl";
 
@@ -109,6 +109,15 @@ export function AppSidebar({ userEmail, businesses = [] }: AppSidebarProps) {
                       >
                         <KanbanSquare className="h-3.5 w-3.5" />
                         <span>{t("subTasks")}</span>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton
+                        isActive={pathname === `/dashboard/business/${biz.id}/approvals`}
+                        onClick={() => router.push(`/dashboard/business/${biz.id}/approvals`)}
+                      >
+                        <CheckSquare className="h-3.5 w-3.5" />
+                        <span>{t("subApprovals")}</span>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
                     <SidebarMenuSubItem>

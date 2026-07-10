@@ -94,6 +94,12 @@ def _execute_approved_action(row: dict) -> None:
         notify(business_id, f"Approval execution failed for {action_type}: {e}")
 
 
+def update_payload(queue_id: str, payload: dict) -> None:
+    """Replace the payload of a pending approval item (used by edit-and-approve flow)."""
+    db = get_supabase()
+    db.table("approval_queue").update({"payload": payload}).eq("id", queue_id).execute()
+
+
 def _fail_associated_tasks(business_id: str, dept_type: str, reason: str) -> None:
     """Mark any awaiting_approval tasks for this dept as failed."""
     db = get_supabase()

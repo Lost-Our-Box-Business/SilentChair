@@ -13,7 +13,8 @@
     "subTasks": "Aufgaben",
     "subWebsite": "Webseite",
     "subCoach": "Coach",
-    "subAgents": "Agenten"
+    "subAgents": "Agenten",
+    "subApprovals": "Genehmigungen"
   },
   "taskBoard": {
     "planned": "Geplant",

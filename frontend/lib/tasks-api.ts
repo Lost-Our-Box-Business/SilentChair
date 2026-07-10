@@ -139,6 +139,15 @@ export async function getApprovalContent(
   return res.json();
 }
 
+export async function updateApprovalContent(taskId: string, payload: Record<string, unknown>): Promise<void> {
+  const res = await fetch(`${API_URL}/api/tasks/${taskId}/approval-content`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ payload }),
+  });
+  if (!res.ok) throw new Error(`Failed to update approval content: ${await res.text()}`);
+}
+
 export async function getGlobalTasks(userId: string, businessId?: string): Promise<Task[]> {
   const params = businessId ? `?business_id=${businessId}` : "";
   const res = await fetch(`${API_URL}/api/tasks/global/${userId}${params}`);

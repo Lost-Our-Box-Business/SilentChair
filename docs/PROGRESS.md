@@ -52,8 +52,8 @@ These were already built and deployed before the roadmap was written.
 - [x] Per-dept schedules stored in DB (`departments.manager_next_eval_at`)
 - [x] Background dispatcher — replaced Celery+Redis with APScheduler + `threading.Timer` (2026-06-28)
 - [ ] User-configurable schedules UI (let users set when each dept runs)
-- [ ] "Edit" action in approval flow (approve/reject is done; edit-and-approve is not)
-- [ ] Standalone approval queue page in dashboard
+- [x] "Edit" action in approval flow — edit-and-approve mode in `ApprovalReviewSheet`; only shown when `task.output_meta.queue_id` exists. `ApprovalEditForm` handles per-type editing (email subjects, article titles/slugs, lead include/exclude). Saves edited payload via `PATCH /api/tasks/{id}/approval-content` before approving. (2026-07-10)
+- [x] Standalone approval queue page — `/dashboard/business/[businessId]/approvals`; polls every 15s; amber card per pending task; opens `ApprovalReviewSheet` inline; Approvals sub-item added to sidebar for all 6 locales. (2026-07-10)
 
 ### 1.7 Website Builder Quality Upgrade
 - [ ] Not started — implementation plan: [docs/plans/1.7-website-builder.md](plans/1.7-website-builder.md)

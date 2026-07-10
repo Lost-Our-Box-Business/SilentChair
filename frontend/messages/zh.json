@@ -13,7 +13,8 @@
     "subTasks": "任务",
     "subWebsite": "网站",
     "subCoach": "教练",
-    "subAgents": "代理"
+    "subAgents": "代理",
+    "subApprovals": "审批队列"
   },
   "taskBoard": {
     "planned": "计划中",

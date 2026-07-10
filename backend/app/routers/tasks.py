@@ -2,7 +2,7 @@
 import traceback
 from fastapi import APIRouter, HTTPException, Response
 from app.db.client import get_supabase
-from app.models.tasks import CreateTaskRequest, UpdateTaskStatusRequest, RejectTaskRequest, UpdateTaskRequest
+from app.models.tasks import CreateTaskRequest, UpdateTaskStatusRequest, RejectTaskRequest, UpdateTaskRequest, UpdateApprovalContentRequest
 from app.services.activity import approve_action, do_pipeline_resume
 from app.services import tasks_sync, pipeline_runner
 
@@ -141,6 +141,24 @@ def get_approval_content(task_id: str):
             return {"action_type": log.get("action_type"), "payload": log.get("detail") or {}}
 
     return {"action_type": task.get("title"), "payload": {}}
+
+
+@router.patch("/{task_id}/approval-content")
+def update_approval_content(task_id: str, req: UpdateApprovalContentRequest):
+    """Replace the approval payload before approving (edit-and-approve flow)."""
+    db = get_supabase()
+    task_result = db.table("tasks").select("output_meta").eq("id", task_id).execute()
+    if not task_result.data:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    output_meta = task_result.data[0].get("output_meta") or {}
+    queue_id = output_meta.get("queue_id")
+    if not queue_id:
+        raise HTTPException(status_code=400, detail="Task has no editable approval queue item")
+
+    from app.services import approval_queue as aq
+    aq.update_payload(queue_id, req.payload)
+    return {"updated": True}
 
 
 @router.post("/{task_id}/approve")

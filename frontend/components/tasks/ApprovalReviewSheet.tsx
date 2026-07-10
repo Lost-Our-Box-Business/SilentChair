@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, CheckCircle2, XCircle, Eye } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Eye, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -12,7 +12,8 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import { ApprovalDetail } from "./ApprovalDetail";
-import { getApprovalContent, type Task } from "@/lib/tasks-api";
+import { ApprovalEditForm } from "./ApprovalEditForm";
+import { getApprovalContent, updateApprovalContent, type Task } from "@/lib/tasks-api";
 import type { ActivityDetail } from "@/lib/activity-api";
 
 interface Props {
@@ -27,6 +28,10 @@ export function ApprovalReviewSheet({ open, onOpenChange, task, onApprove, onRej
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<ActivityDetail | null>(null);
   const [actionType, setActionType] = useState<string>("");
+  const [canEdit, setCanEdit] = useState(false);
+
+  const [editing, setEditing] = useState(false);
+  const [editedPayload, setEditedPayload] = useState<ActivityDetail | null>(null);
 
   const [declining, setDeclining] = useState(false);
   const [reason, setReason] = useState("");
@@ -37,25 +42,56 @@ export function ApprovalReviewSheet({ open, onOpenChange, task, onApprove, onRej
   useEffect(() => {
     if (!open) {
       setDetail(null);
+      setEditing(false);
+      setEditedPayload(null);
       setDeclining(false);
       setReason("");
       setDone(null);
+      setCanEdit(false);
       return;
     }
     setLoading(true);
     getApprovalContent(task.id)
       .then((res) => {
         setActionType(res.action_type ?? task.title);
-        setDetail(res.payload as ActivityDetail);
+        const payload = res.payload as ActivityDetail;
+        setDetail(payload);
+        setEditedPayload(payload);
+        // Edit is only available when task has a queue_id (new dept-agent path)
+        const meta = (task.output_meta ?? {}) as Record<string, unknown>;
+        setCanEdit(!!meta.queue_id);
       })
-      .catch(() => setDetail({}))
+      .catch(() => {
+        setDetail({});
+        setEditedPayload({});
+      })
       .finally(() => setLoading(false));
-  }, [open, task.id, task.title]);
+  }, [open, task.id, task.title, task.output_meta]);
 
   async function handleApprove() {
     if (!onApprove || approving) return;
     setApproving(true);
     try {
+      await onApprove(task.id);
+      setDone("approved");
+      setTimeout(() => onOpenChange(false), 1200);
+    } finally {
+      setApproving(false);
+    }
+  }
+
+  async function handleSaveAndApprove() {
+    if (!onApprove || approving || !editedPayload) return;
+    setApproving(true);
+    try {
+      // Strip _included=false leads before saving
+      const cleanPayload = {
+        ...editedPayload,
+        qualified_leads: editedPayload.qualified_leads?.filter(
+          (l) => (l as Record<string, unknown>)._included !== false
+        ),
+      };
+      await updateApprovalContent(task.id, cleanPayload as Record<string, unknown>);
       await onApprove(task.id);
       setDone("approved");
       setTimeout(() => onOpenChange(false), 1200);
@@ -94,6 +130,11 @@ export function ApprovalReviewSheet({ open, onOpenChange, task, onApprove, onRej
                 {task.department.replace(/_/g, " ")}
               </span>
             )}
+            {editing && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                editing
+              </span>
+            )}
           </div>
         </SheetHeader>
 
@@ -110,6 +151,11 @@ export function ApprovalReviewSheet({ open, onOpenChange, task, onApprove, onRej
             <div className="flex items-center gap-2 text-red-600 text-sm">
               <XCircle className="h-4 w-4" /> Declined — the agent will retry with your notes.
             </div>
+          ) : editing && editedPayload ? (
+            <ApprovalEditForm
+              payload={editedPayload}
+              onChange={setEditedPayload}
+            />
           ) : hasContent ? (
             <ApprovalDetail detail={detail!} />
           ) : (
@@ -147,6 +193,23 @@ export function ApprovalReviewSheet({ open, onOpenChange, task, onApprove, onRej
                   </Button>
                 </div>
               </>
+            ) : editing ? (
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                  onClick={handleSaveAndApprove}
+                  disabled={approving}
+                >
+                  {approving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                  Save & Approve
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => { setEditing(false); setEditedPayload(detail); }}
+                >
+                  Cancel
+                </Button>
+              </div>
             ) : (
               <div className="flex gap-2">
                 <Button
@@ -157,9 +220,17 @@ export function ApprovalReviewSheet({ open, onOpenChange, task, onApprove, onRej
                   {approving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
                   Approve
                 </Button>
+                {canEdit && hasContent && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setEditing(true)}
+                  >
+                    <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                    Edit
+                  </Button>
+                )}
                 <Button
                   variant="outline"
-                  className="flex-1"
                   onClick={() => setDeclining(true)}
                 >
                   Decline

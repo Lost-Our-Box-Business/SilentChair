@@ -42,3 +42,7 @@ class UpdateTaskRequest(BaseModel):
     description: Optional[str] = None
     department: Optional[str] = None
     assigned_to: Optional[str] = None
+
+
+class UpdateApprovalContentRequest(BaseModel):
+    payload: dict
