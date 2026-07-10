@@ -131,6 +131,14 @@ export async function setTaskStatus(taskId: string, status: TaskStatus): Promise
   return res.json();
 }
 
+export async function getApprovalContent(
+  taskId: string
+): Promise<{ action_type: string; payload: Record<string, unknown> }> {
+  const res = await fetch(`${API_URL}/api/tasks/${taskId}/approval-content`);
+  if (!res.ok) throw new Error("Failed to fetch approval content");
+  return res.json();
+}
+
 export async function getGlobalTasks(userId: string, businessId?: string): Promise<Task[]> {
   const params = businessId ? `?business_id=${businessId}` : "";
   const res = await fetch(`${API_URL}/api/tasks/global/${userId}${params}`);

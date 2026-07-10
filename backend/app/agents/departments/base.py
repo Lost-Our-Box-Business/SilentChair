@@ -171,4 +171,6 @@ class BaseDepartmentAgent(ABC):
             "status": "pending",
         }).execute()
         await self.update_task(task_id, "awaiting_approval")
+        # Link queue item to task so the review UI can fetch the content
+        db.table("tasks").update({"output_meta": {"queue_id": queue_id}}).eq("id", task_id).execute()
         return queue_id

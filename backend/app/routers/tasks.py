@@ -116,6 +116,33 @@ def run_task(task_id: str, locale: str | None = None):
         raise HTTPException(status_code=500, detail=f"Pipeline error: {e}")
 
 
+@router.get("/{task_id}/approval-content")
+def get_approval_content(task_id: str):
+    """Return the pending approval payload for a task so the review UI can display it."""
+    db = get_supabase()
+    task_result = db.table("tasks").select("*").eq("id", task_id).execute()
+    if not task_result.data:
+        raise HTTPException(status_code=404, detail="Task not found")
+    task = task_result.data[0]
+
+    # New dept-agent path: queue_id stored in output_meta
+    output_meta = task.get("output_meta") or {}
+    queue_id = output_meta.get("queue_id")
+    if queue_id:
+        item = db.table("approval_queue").select("*").eq("id", queue_id).single().execute().data
+        if item:
+            return {"action_type": item.get("action_type"), "payload": item.get("payload") or {}}
+
+    # Old pipeline path: activity_log
+    log_id = task.get("activity_log_id")
+    if log_id:
+        log = db.table("activity_log").select("detail,action_type").eq("id", log_id).single().execute().data
+        if log:
+            return {"action_type": log.get("action_type"), "payload": log.get("detail") or {}}
+
+    return {"action_type": task.get("title"), "payload": {}}
+
+
 @router.post("/{task_id}/approve")
 def approve_task(task_id: str):
     """Approve a blocked task. Resumes the linked pipeline if one exists."""
@@ -128,17 +155,28 @@ def approve_task(task_id: str):
     if task.get("status") != "awaiting_approval":
         raise HTTPException(status_code=400, detail="Task is not awaiting approval")
 
-    activity_log_id = task.get("activity_log_id")
-    if activity_log_id:
-        row_result = db.table("activity_log").select("*").eq("id", activity_log_id).execute()
-        if row_result.data:
-            row = row_result.data[0]
-            if not row.get("approved_at"):
-                try:
-                    approve_action(activity_log_id)
-                    do_pipeline_resume(activity_log_id, row)
-                except Exception:
-                    traceback.print_exc()
+    # New dept-agent path: execute via approval_queue
+    output_meta = task.get("output_meta") or {}
+    queue_id = output_meta.get("queue_id")
+    if queue_id:
+        from app.services import approval_queue as aq
+        try:
+            aq.approve(queue_id, user_id="system")
+        except Exception:
+            traceback.print_exc()
+    else:
+        # Old pipeline path: resume via activity_log
+        activity_log_id = task.get("activity_log_id")
+        if activity_log_id:
+            row_result = db.table("activity_log").select("*").eq("id", activity_log_id).execute()
+            if row_result.data:
+                row = row_result.data[0]
+                if not row.get("approved_at"):
+                    try:
+                        approve_action(activity_log_id)
+                        do_pipeline_resume(activity_log_id, row)
+                    except Exception:
+                        traceback.print_exc()
 
     result = db.table("tasks").update({"status": "completed"}).eq("id", task_id).execute()
     return result.data[0] if result.data else task
@@ -166,16 +204,17 @@ def reject_task(task_id: str, req: RejectTaskRequest):
         "output": None,
     }).eq("id", task_id).execute()
 
-    # Trigger manager re-evaluation so it can assign the task again
+    # Immediately re-run the agent with the rejection notes in the task description
     dept_type = task.get("department")
     business_id = task.get("business_id")
     if dept_type and business_id:
-        try:
-            from app.services import department_manager
-            department_manager.evaluate(business_id, dept_type)
-            department_manager.update_narrative(business_id, dept_type)
-        except Exception:
-            traceback.print_exc()
+        import threading
+        from app.services.department_runner import run_task as _run_task
+        threading.Thread(
+            target=_run_task,
+            args=[business_id, dept_type, task_id],
+            daemon=True,
+        ).start()
 
     return result.data[0] if result.data else task
 

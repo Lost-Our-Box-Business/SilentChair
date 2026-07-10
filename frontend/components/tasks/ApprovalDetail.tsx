@@ -6,7 +6,8 @@ import { useTranslations } from "next-intl";
 import { getActivityEntry, type ActivityDetail } from "@/lib/activity-api";
 
 interface Props {
-  activityLogId: string;
+  activityLogId?: string;
+  detail?: ActivityDetail;
 }
 
 function EmailPreview({ email }: { email: NonNullable<ActivityDetail["outreach_emails"]>[number] }) {
@@ -79,19 +80,21 @@ function LeadRow({ lead }: { lead: Record<string, unknown> }) {
   );
 }
 
-export function ApprovalDetail({ activityLogId }: Props) {
+export function ApprovalDetail({ activityLogId, detail: preloadedDetail }: Props) {
   const t = useTranslations("taskBoard");
   const tDetail = useTranslations("approvalDetail");
-  const [detail, setDetail] = useState<ActivityDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [detail, setDetail] = useState<ActivityDetail | null>(preloadedDetail ?? null);
+  const [loading, setLoading] = useState(!preloadedDetail);
   const [error, setError] = useState(false);
 
   useEffect(() => {
+    if (preloadedDetail) return;
+    if (!activityLogId) { setLoading(false); return; }
     getActivityEntry(activityLogId)
       .then((entry) => setDetail(entry.detail))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [activityLogId]);
+  }, [activityLogId, preloadedDetail]);
 
   if (loading) {
     return (

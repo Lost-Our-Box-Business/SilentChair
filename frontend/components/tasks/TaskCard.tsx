@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Loader2, CheckCircle2, XCircle, ChevronDown, Trash2, Pencil,
-  Play, ArrowRight, SquareCheck,
+  Play, ArrowRight, SquareCheck, Eye,
 } from "lucide-react";
 import { updateTask, runTask, setTaskStatus, type Task, type TaskStatus } from "@/lib/tasks-api";
 import { ApprovalDetail } from "./ApprovalDetail";
+import { ApprovalReviewSheet } from "./ApprovalReviewSheet";
 import { useLocale } from "next-intl";
 
 interface Props {
@@ -63,11 +64,8 @@ export function TaskCard({
 
   const [movingTo, setMovingTo] = useState<TaskStatus | null>(null);
 
-  const [approving, setApproving] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [approveDone, setApproveDone] = useState(false);
-  const [rejecting, setRejecting] = useState(false);
-  const [rejectOpen, setRejectOpen] = useState(false);
-  const [rejectReason, setRejectReason] = useState("");
   const [rejectDone, setRejectDone] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -77,6 +75,7 @@ export function TaskCard({
   const isPlanned = task.status === "planned";
   const isInProgress = task.status === "in_progress";
   const actionsBusy = approveDone || rejectDone;
+
 
   const isAgentTask = task.assigned_to === "agent";
   const isUserTask = task.assigned_to === "user";
@@ -137,18 +136,14 @@ export function TaskCard({
     }
   }
 
-  async function handleApprove() {
-    if (!onApprove || approving) return;
-    setApproving(true);
-    try { await onApprove(task.id); setApproveDone(true); }
-    finally { setApproving(false); }
+  async function handleApproveFromSheet(id: string) {
+    await onApprove?.(id);
+    setApproveDone(true);
   }
 
-  async function handleReject() {
-    if (!onReject || rejecting || !rejectReason.trim()) return;
-    setRejecting(true);
-    try { await onReject(task.id, rejectReason.trim()); setRejectDone(true); setRejectOpen(false); }
-    finally { setRejecting(false); }
+  async function handleRejectFromSheet(id: string, reason: string) {
+    await onReject?.(id, reason);
+    setRejectDone(true);
   }
 
   async function handleDelete(e: React.MouseEvent) {
@@ -316,43 +311,22 @@ export function TaskCard({
 
             {isBlocked && !actionsBusy && (
               <div onClick={(e) => e.stopPropagation()}>
-                {rejectOpen ? (
-                  <div className="space-y-1.5">
-                    <Input
-                      className="h-7 text-xs"
-                      placeholder={t("reasonForRejection")}
-                      value={rejectReason}
-                      onChange={(e) => setRejectReason(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") handleReject(); if (e.key === "Escape") setRejectOpen(false); }}
-                      autoFocus
-                    />
-                    <div className="flex gap-1.5">
-                      <Button size="sm" variant="destructive" className="h-7 text-xs flex-1"
-                        onClick={handleReject} disabled={!rejectReason.trim() || rejecting}>
-                        {rejecting && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                        {t("confirmReject")}
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-7 text-xs"
-                        onClick={() => { setRejectOpen(false); setRejectReason(""); }}>
-                        {t("cancel")}
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex gap-1.5">
-                    <Button size="sm" variant="outline"
-                      className="h-7 text-xs flex-1 border-amber-400 hover:bg-amber-500/10"
-                      onClick={handleApprove} disabled={approving}>
-                      {approving && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                      {approving ? t("approving") : t("approveAndSend")}
-                    </Button>
-                    <Button size="sm" variant="ghost"
-                      className="h-7 text-xs text-muted-foreground hover:text-red-600 hover:bg-red-500/10"
-                      onClick={() => setRejectOpen(true)}>
-                      {t("reject")}
-                    </Button>
-                  </div>
-                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs w-full border-amber-400 hover:bg-amber-500/10"
+                  onClick={() => setReviewOpen(true)}
+                >
+                  <Eye className="h-3 w-3 mr-1.5" />
+                  Review
+                </Button>
+                <ApprovalReviewSheet
+                  open={reviewOpen}
+                  onOpenChange={setReviewOpen}
+                  task={task}
+                  onApprove={handleApproveFromSheet}
+                  onReject={handleRejectFromSheet}
+                />
               </div>
             )}
 
