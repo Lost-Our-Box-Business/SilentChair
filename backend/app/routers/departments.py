@@ -21,88 +21,6 @@ class ApprovalAction(BaseModel):
     reason: str = ""
 
 
-# ── Per-department endpoints (manager chat, narrative, approval queue) ─────────
-
-@router.get("/{business_id}/{dept_type}")
-def get_department(business_id: str, dept_type: str):
-    """Return full department details including narrative, chat history, and today's cost."""
-    try:
-        from app.services.cost_tracker import get_today_spend
-        from app.services.department_runner import AGENT_REGISTRY
-        db = get_supabase()
-        row = (
-            db.table("departments")
-            .select("*")
-            .eq("business_id", business_id)
-            .eq("dept_type", dept_type)
-            .single()
-            .execute()
-            .data
-        )
-        if not row:
-            raise HTTPException(status_code=404, detail="Department not found")
-        spend = get_today_spend(business_id)
-        by_dept = spend.get("by_dept", {})
-        agent_cls = AGENT_REGISTRY.get(dept_type)
-        row["today_cost_usd"] = by_dept.get(dept_type, 0.0)
-        row["label_color"] = row.get("label_color") or (agent_cls.label_color if agent_cls else "#6b7280")
-        return row
-    except HTTPException:
-        raise
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/{business_id}/{dept_type}/chat")
-def chat_with_manager(business_id: str, dept_type: str, body: ChatRequest):
-    """Send a message to the department manager. Returns the manager's reply."""
-    try:
-        from app.services import department_manager
-        reply = department_manager.chat(business_id, dept_type, body.message)
-        return {"reply": reply}
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/{business_id}/{dept_type}/queue")
-def get_dept_approval_queue(business_id: str, dept_type: str):
-    """Return pending approval items for a specific department."""
-    try:
-        from app.services import approval_queue
-        return approval_queue.list_pending(business_id, dept_type=dept_type)
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/{business_id}/{dept_type}/queue/{queue_id}/approve")
-def approve_dept_queue_item(business_id: str, dept_type: str, queue_id: str, body: ApprovalAction):
-    """Approve a pending item in this department's approval queue."""
-    try:
-        from app.services import approval_queue
-        return approval_queue.approve(queue_id, body.user_id)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/{business_id}/{dept_type}/queue/{queue_id}/reject")
-def reject_dept_queue_item(business_id: str, dept_type: str, queue_id: str, body: ApprovalAction):
-    """Reject a pending item in this department's approval queue."""
-    try:
-        from app.services import approval_queue
-        return approval_queue.reject(queue_id, body.user_id, body.reason)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 def _full_dept_catalog() -> dict:
     """Merge all archetype department catalogs into one dict keyed by dept_type."""
     catalog = {}
@@ -111,6 +29,8 @@ def _full_dept_catalog() -> dict:
             catalog[d.dept_type] = d
     return catalog
 
+
+# ── Specific literal-prefix routes (must come before wildcard routes) ─────────
 
 @router.post("/suggest", response_model=DepartmentSuggestResponse)
 async def suggest(req: DepartmentSuggestRequest):
@@ -258,3 +178,85 @@ async def get_staff_suggestions(dept_type: str):
     if not entry:
         raise HTTPException(status_code=404, detail="Department type not found")
     return [s.model_dump() for s in entry.suggested_staff]
+
+
+# ── Wildcard per-department routes (must come after all literal-prefix routes) ─
+
+@router.get("/{business_id}/{dept_type}")
+def get_department(business_id: str, dept_type: str):
+    """Return full department details including narrative, chat history, and today's cost."""
+    try:
+        from app.services.cost_tracker import get_today_spend
+        from app.services.department_runner import AGENT_REGISTRY
+        db = get_supabase()
+        row = (
+            db.table("departments")
+            .select("*")
+            .eq("business_id", business_id)
+            .eq("dept_type", dept_type)
+            .single()
+            .execute()
+            .data
+        )
+        if not row:
+            raise HTTPException(status_code=404, detail="Department not found")
+        spend = get_today_spend(business_id)
+        by_dept = spend.get("by_dept", {})
+        agent_cls = AGENT_REGISTRY.get(dept_type)
+        row["today_cost_usd"] = by_dept.get(dept_type, 0.0)
+        row["label_color"] = row.get("label_color") or (agent_cls.label_color if agent_cls else "#6b7280")
+        return row
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{business_id}/{dept_type}/chat")
+def chat_with_manager(business_id: str, dept_type: str, body: ChatRequest):
+    """Send a message to the department manager. Returns the manager's reply."""
+    try:
+        from app.services import department_manager
+        reply = department_manager.chat(business_id, dept_type, body.message)
+        return {"reply": reply}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{business_id}/{dept_type}/queue")
+def get_dept_approval_queue(business_id: str, dept_type: str):
+    """Return pending approval items for a specific department."""
+    try:
+        from app.services import approval_queue
+        return approval_queue.list_pending(business_id, dept_type=dept_type)
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{business_id}/{dept_type}/queue/{queue_id}/approve")
+def approve_dept_queue_item(business_id: str, dept_type: str, queue_id: str, body: ApprovalAction):
+    """Approve a pending item in this department's approval queue."""
+    try:
+        from app.services import approval_queue
+        return approval_queue.approve(queue_id, body.user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{business_id}/{dept_type}/queue/{queue_id}/reject")
+def reject_dept_queue_item(business_id: str, dept_type: str, queue_id: str, body: ApprovalAction):
+    """Reject a pending item in this department's approval queue."""
+    try:
+        from app.services import approval_queue
+        return approval_queue.reject(queue_id, body.user_id, body.reason)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
