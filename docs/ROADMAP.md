@@ -99,6 +99,14 @@ Move from a single content pipeline to a modular per-department agent system tha
 - Per-business, per-department schedules stored in DB (user-configurable)
 - Celery Beat dispatcher updated to use new system
 
+### 1.7 Website Builder Quality Upgrade
+
+The website builder is live but generates bare-bones output and shows no preview during onboarding.
+
+- **Professional output:** Rewrite the LLM system prompt to require a concrete 5-section page structure (nav, hero with gradient, services grid, about, footer), CSS custom properties, Google Fonts, responsive breakpoints (768px / 480px), and a scroll-reveal animation via `IntersectionObserver`. Increase `max_tokens` from 8192 → 16000 so the full site generates without truncation. Replace Unsplash image IDs (unreliable) with CSS gradient backgrounds and SVG/emoji icons.
+- **Onboarding preview:** After the AI generates the site in the onboarding flow, show a split-pane layout — chat on left, live iframe preview on right. Currently the dashboard website page already has this preview; the onboarding step does not.
+- **No new routes or tables needed** — purely prompt and frontend layout changes.
+
 ---
 
 ## Phase 2 — Core Departments (Weeks 5–10)

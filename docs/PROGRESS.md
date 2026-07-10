@@ -55,6 +55,9 @@ These were already built and deployed before the roadmap was written.
 - [ ] "Edit" action in approval flow (approve/reject is done; edit-and-approve is not)
 - [ ] Standalone approval queue page in dashboard
 
+### 1.7 Website Builder Quality Upgrade
+- [ ] Not started
+
 ---
 
 ## Phase 2 — Core Departments

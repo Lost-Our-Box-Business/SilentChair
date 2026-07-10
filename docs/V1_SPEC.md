@@ -106,9 +106,10 @@ All departments are accessible to all users on all tiers. All users can run unli
 - Natural language chat interface to build and modify a website
 - Site hosted on `{slug}.silentchair.app` subdomain
 - Custom domain support: user provides their domain, platform provides CNAME instructions
-- Preview via iframe in the dashboard
+- Preview via iframe in the dashboard **and in the onboarding flow** (split-pane: chat left, live preview right)
 - Publish to live URL with one click
 - AI has full access to Living Business Document when building the site (brand, products, tone)
+- **Professional output quality:** generated sites must include proper Google Fonts, CSS custom properties, a hero with gradient background, a services/features grid, responsive layout (mobile + desktop), and scroll-reveal animations. No placeholder images or Lorem ipsum.
 
 ### 8. Subscription and Billing
 - Stripe integration for all payments
