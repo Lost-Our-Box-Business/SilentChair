@@ -56,7 +56,7 @@ These were already built and deployed before the roadmap was written.
 - [ ] Standalone approval queue page in dashboard
 
 ### 1.7 Website Builder Quality Upgrade
-- [ ] Not started
+- [ ] Not started — implementation plan: [docs/plans/1.7-website-builder.md](plans/1.7-website-builder.md)
 
 ---
 
