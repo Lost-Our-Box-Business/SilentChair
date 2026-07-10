@@ -79,6 +79,31 @@ def _load_dept_tasks(business_id: str, dept_type: str) -> dict:
     return groups
 
 
+def _load_business_profile(business_id: str) -> str:
+    """Return a compact business context string to inject into manager prompts."""
+    db = get_supabase()
+    result = db.table("businesses").select("name,profile").eq("id", business_id).single().execute()
+    if not result.data:
+        return ""
+    row = result.data
+    name = row.get("name", "")
+    profile = row.get("profile") or {}
+    parts = []
+    if name:
+        parts.append(f"Business name: {name}")
+    for key, label in [
+        ("niche", "Industry/niche"),
+        ("target_audience", "Target audience"),
+        ("goals", "Goals"),
+        ("products_services", "Products/services"),
+        ("unique_value_proposition", "Value proposition"),
+    ]:
+        val = profile.get(key)
+        if val:
+            parts.append(f"{label}: {val}")
+    return "\n".join(parts)
+
+
 def _load_dept_row(business_id: str, dept_type: str) -> dict:
     db = get_supabase()
     result = (
@@ -152,7 +177,8 @@ class DepartmentManager:
             )
 
         # Ask LLM to decide which task to start and when
-        prompt = self._build_eval_prompt(dept_type, desc, planned, tasks["completed"], budget)
+        biz_profile = _load_business_profile(business_id)
+        prompt = self._build_eval_prompt(dept_type, desc, planned, tasks["completed"], budget, biz_profile)
         try:
             raw = _sonnet(prompt, 600)
             parsed = json.loads(raw)
@@ -186,12 +212,14 @@ class DepartmentManager:
         tasks = _load_dept_tasks(business_id, dept_type)
         budget = get_budget_state(business_id)
         desc = DEPT_DESCRIPTIONS.get(dept_type, dept_type)
+        biz_profile = _load_business_profile(business_id)
 
         system = (
             f"You are the {dept_type.replace('_', ' ').title()} department manager for a business. "
             f"Your department handles: {desc}. "
             "You speak directly to the business owner. Be concise and practical.\n\n"
-            "You MUST always respond with valid JSON in this exact format:\n"
+            + (f"Business context:\n{biz_profile}\n\n" if biz_profile else "")
+            + "You MUST always respond with valid JSON in this exact format:\n"
             '{"reply": "your conversational response", "actions": []}\n\n'
             "The actions array may contain task operations:\n"
             '{"type": "create_task", "title": "Task title", "description": "Optional detail"}\n\n'
@@ -259,6 +287,7 @@ class DepartmentManager:
         """Generate a fresh plain-language status paragraph and persist it."""
         tasks = _load_dept_tasks(business_id, dept_type)
         desc = DEPT_DESCRIPTIONS.get(dept_type, dept_type)
+        biz_profile = _load_business_profile(business_id)
 
         done = [t["title"] for t in tasks["completed"][:5]]
         in_prog = [t["title"] for t in tasks["in_progress"] + tasks["awaiting_approval"]]
@@ -267,7 +296,8 @@ class DepartmentManager:
         prompt = (
             f"You are the {dept_type.replace('_', ' ').title()} department manager. "
             f"Your department handles: {desc}.\n\n"
-            "Write a 2-3 sentence plain-language department status update in the first person plural (we/our). "
+            + (f"Business context:\n{biz_profile}\n\n" if biz_profile else "")
+            + "Write a 2-3 sentence plain-language department status update in the first person plural (we/our). "
             "Cover three things: what has been done recently, what is being worked on now, and what is planned next. "
             "Be specific and factual. No bullet points.\n\n"
             f"Recently completed: {done if done else 'nothing yet'}\n"
@@ -290,6 +320,7 @@ class DepartmentManager:
         planned: list,
         completed: list,
         budget: dict,
+        biz_profile: str = "",
     ) -> str:
         now = datetime.now(timezone.utc).strftime("%A %H:%M UTC")
         daily_remaining = budget.get("daily_remaining")
@@ -300,7 +331,8 @@ class DepartmentManager:
         return (
             f"You are the {dept_type.replace('_', ' ').title()} department manager. "
             f"Your department handles: {desc}.\n\n"
-            f"Current time: {now}\n"
+            + (f"Business context:\n{biz_profile}\n\n" if biz_profile else "")
+            + f"Current time: {now}\n"
             f"Budget remaining today: {budget_str}\n"
             f"Recently completed tasks: {recent_done if recent_done else 'none'}\n\n"
             f"Planned tasks (in order):\n{json.dumps(planned_items, indent=2)}\n\n"
