@@ -221,8 +221,12 @@ def find_leads_node(state: LeadGenState) -> dict:
 
     if serper_key:
         try:
-            industries = " OR ".join(market.get("target_industries", [profile.get("niche", "")])[:2])
-            query = f'{industries} companies {market.get("company_size", "")} {profile.get("niche", "")}'
+            industries = " OR ".join(market.get("target_industries", [profile.get("target_audience", "")])[:2])
+            size = market.get("company_size", "")
+            pain = market.get("pain_points", [])
+            pain_hint = pain[0] if pain else ""
+            # Query targets CLIENT companies, not the business's own niche
+            query = f'{industries} companies {size} {pain_hint}'.strip()
             results = serper.search(query, num_results=10, api_key=serper_key)
             raw_results = json.dumps(results)
             log.append("Lead finding: searched for real companies via Serper")
@@ -237,29 +241,35 @@ def find_leads_node(state: LeadGenState) -> dict:
 
     leads_raw = _json_call(
         _cheap_llm(),
-        """You are a B2B lead researcher. Extract real company information ONLY from the
-search results provided. Do NOT invent, generate, or guess any companies not found
-in the results. Do NOT add email addresses or individual contact names — these are
-not available from search results and must not be fabricated.
+        """You are a B2B lead researcher identifying POTENTIAL CLIENTS — companies that would
+BUY a service, not companies that sell the same service. Never include competitors.
 
-For each real company found in the results, return a JSON object with:
+Extract real company information ONLY from the search results provided. Do NOT invent,
+generate, or guess any companies not found in the results. Do NOT add email addresses
+or individual contact names — these are not available from search results.
+
+For each real POTENTIAL CLIENT company found in the results, return a JSON object with:
 - company (str): company name exactly as it appears in the search result
 - website (str): URL from the search result
 - industry (str): industry inferred from the snippet
 - size_hint (str): company size if mentioned in the snippet, otherwise ""
-- relevance_reason (str): 1 sentence explaining why this company matches the ICP
+- relevance_reason (str): 1 sentence explaining why this company would buy the offering
 - source_snippet (str): the relevant portion of the Serper snippet for this company
 
 Return ONLY a valid JSON array. If fewer than 5 real companies appear in the results,
 return only those found — never pad with invented entries.""",
-        f"""{task_context}ICP: {market.get('icp', '')}
+        f"""{task_context}We are looking for companies that would HIRE or BUY FROM a business offering: {profile.get('niche', '')}
+These are our TARGET CLIENTS, not our competitors.
+
+ICP: {market.get('icp', '')}
 Target industries: {', '.join(market.get('target_industries', []))}
 Company size: {market.get('company_size', '')}
 
 Search results from Serper:
 {raw_results}
 
-Extract only companies that actually appear in the search results above.""",
+Extract only POTENTIAL CLIENT companies that actually appear in the search results above.
+Skip any company that appears to offer the same type of service as us.""",
         business_id=bid,
         dept_type="lead_research",
     )
