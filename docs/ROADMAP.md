@@ -35,7 +35,7 @@ Everything below needs to be built or significantly reworked before V1 launch.
 
 The core systems that everything else depends on. Build these first.
 
-### 1.1 Living Business Document `🔄 DB scaffold only — feature not built`
+### 1.1 Living Business Document `🔄 Mostly complete — agents don't write back to business_context`
 
 Transform the static `businesses.profile` JSON into a dynamic, versioned, agent-readable document.
 
@@ -79,7 +79,7 @@ Sprint-board UI for the user to see all their AI tasks across departments.
 - 14-day free trial with $5 AI spend included (no card required at signup)
 - Failed payment grace period (3 days) → agent actions paused → account suspended
 
-### 1.5 Language / i18n `🔄 Mostly complete — browser Accept-Language auto-detect missing`
+### 1.5 Language / i18n `✅ Complete`
 
 - Install and configure `next-intl`
 - Externalize all UI strings into locale files

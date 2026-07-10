@@ -61,12 +61,17 @@ These were already built and deployed before the roadmap was written.
 ## Phase 1 — Platform Foundation
 
 ### 1.1 Living Business Document
-- **Status:** 🔄 DB scaffold only — feature not built
-- [x] DB columns added: `business_context` JSONB on `businesses`, `business_context_history` table, `notify_blocked` flag — Migration 006
-- [ ] Update mechanism (coordinator agent that proposes + commits updates) — not built
-- [ ] Version history writes — table exists but nothing writes to it
-- [ ] User-facing "Living Document" summary view on Business Dashboard — not built
-- [ ] "Correct this" flow (user tells AI something is wrong → agent updates) — not built
+- **Status:** 🔄 Mostly complete — agents don't autonomously write back to business_context
+- [x] DB columns: `business_context` JSONB + `business_context_updated_at` on `businesses` — Migration 006
+- [x] `business_context_history` table + version snapshots via `_snapshot()` — written before every update
+- [x] `notify_blocked` flag on `businesses` — Migration 006
+- [x] `initialize_from_profile()` — auto-populates `business_context` from interview profile; lazy init on first dashboard load for existing businesses
+- [x] AI-generated plain-English summary via Haiku on initialization (`_build_summary()`)
+- [x] Summary translated on-the-fly when locale ≠ en via `_translate_summary()`
+- [x] `BusinessOverviewCard.tsx` — shows summary on business dashboard
+- [x] "Correct this" flow — user types correction → `propose_correction()` → Haiku interprets changes → `update_context()` merges + snapshots → UI refreshes (`living_doc.py`, `living-doc-api.ts`, `BusinessOverviewCard.tsx`)
+- [x] Agents READ `business_context` via `get_business_context()` in `BaseDepartmentAgent`
+- [ ] Agents WRITE back to `business_context` (propose updates that a coordinator commits) — not built; agents only read
 
 ### 1.2 Dollar Balance System
 - **Status:** 🔄 DB + daily cost tracking built; per-user balance ledger and Stripe not wired
@@ -102,14 +107,15 @@ These were already built and deployed before the roadmap was written.
 - [ ] Failed payment grace period → pause → suspend
 
 ### 1.5 Language / i18n
-- **Status:** 🔄 Mostly complete — browser auto-detection not implemented
+- **Status:** ✅ Complete (2026-06-21)
 - [x] `next-intl` installed and configured
 - [x] All UI strings externalized into locale files (EN, ES, FR, PT, DE, ZH)
+- [x] Browser `Accept-Language` auto-detection on first visit — `proxy.ts` reads header, sets locale cookie if not already set
 - [x] Language selector dropdown always visible in dashboard header (`LanguageSelector` component)
 - [x] Changing language takes effect immediately via `setLocale()` server action + `router.refresh()`
-- [x] Locale preference persisted in cookie + Supabase user metadata
+- [x] Locale preference persisted in cookie + Supabase user metadata; restored on login via auth callback
 - [x] AI agent responses pass locale via `language_instruction` in `department_runner.run_task()`
-- [ ] Browser `Accept-Language` auto-detection on first load — cookie falls back to `en` default; no header sniffing
+- [x] Business summary translated on-the-fly in `living_doc.get_context()` when locale ≠ en
 
 ### 1.6 Agent Architecture Refactor
 - **Status:** ✅ Complete (2026-07-10)
