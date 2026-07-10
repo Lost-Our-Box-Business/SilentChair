@@ -2,7 +2,6 @@
 
 import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { type ActivityDetail, type OutreachEmail } from "@/lib/activity-api";
 
 interface Props {
@@ -131,10 +130,11 @@ export function ApprovalEditForm({ payload, onChange }: Props) {
                   key={i}
                   className={`flex items-start gap-2.5 rounded border px-2.5 py-2 text-xs transition-opacity ${included ? "border-border" : "border-border opacity-40"}`}
                 >
-                  <Checkbox
+                  <input
+                    type="checkbox"
                     checked={included}
-                    onCheckedChange={(v) => toggleLead(i, !!v)}
-                    className="mt-0.5 shrink-0"
+                    onChange={(e) => toggleLead(i, e.target.checked)}
+                    className="mt-0.5 shrink-0 h-4 w-4 cursor-pointer accent-primary"
                   />
                   <div className="min-w-0">
                     <p className="font-medium truncate">{String(lead.company || lead.name || "")}</p>
