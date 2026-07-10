@@ -12,6 +12,8 @@ AI business workforce SaaS. Users hire AI departments (Marketing, Sales, Lead Ge
 
 ## Progress Tracking Rule
 
+**Before starting any roadmap work, read `docs/PROGRESS.md` to understand what's already done and what gaps remain. Never assume — check the file.**
+
 **After completing any roadmap task — a numbered item (1.1, 1.2, 2.3, etc.) or a full phase — update `docs/PROGRESS.md` immediately.**
 
 How to update it:
