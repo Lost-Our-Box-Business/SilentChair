@@ -299,11 +299,13 @@ Companies to score: {json.dumps(leads)}""",
         dept_type="lead_qualification",
     )
 
-    qualified = [l for l in (scored if isinstance(scored, list) else []) if l.get("qualified", False)]
+    all_scored = scored if isinstance(scored, list) else leads
+    qualified = [l for l in all_scored if l.get("qualified", False)]
     qualified_leads = sorted(qualified, key=lambda x: x.get("score", 0), reverse=True)[:5]
 
     log.append(f"Qualification: {len(qualified_leads)} of {len(leads)} leads qualified (score ≥ 6)")
-    return {"qualified_leads": qualified_leads, "log": log}
+    # Return all_scored as leads so the activity detail panel can show scores/reasons for rejected leads
+    return {"leads": all_scored, "qualified_leads": qualified_leads, "log": log}
 
 
 def draft_outreach_node(state: LeadGenState) -> dict:
