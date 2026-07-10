@@ -141,13 +141,13 @@ export function ActivityDetailPanel({ detail, actionType, summary, businessId }:
         <div>
           <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Market Research</p>
           <div className="space-y-1 text-xs">
-            {mr?.icp && (
+            {!!mr?.icp && (
               <p>
                 <span className="font-medium text-foreground">ICP: </span>
                 <span className="text-muted-foreground">{str(mr.icp)}</span>
               </p>
             )}
-            {mr?.company_size && (
+            {!!mr?.company_size && (
               <p>
                 <span className="font-medium text-foreground">Company size: </span>
                 <span className="text-muted-foreground">{str(mr.company_size)}</span>
@@ -171,7 +171,7 @@ export function ActivityDetailPanel({ detail, actionType, summary, businessId }:
                 <span className="text-muted-foreground">{(mr.decision_makers as string[]).join(", ")}</span>
               </p>
             )}
-            {mr?.summary && <p className="text-muted-foreground">{str(mr.summary)}</p>}
+            {!!mr?.summary && <p className="text-muted-foreground">{str(mr.summary)}</p>}
           </div>
         </div>
       )}
