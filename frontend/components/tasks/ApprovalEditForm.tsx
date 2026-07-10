@@ -138,8 +138,8 @@ export function ApprovalEditForm({ payload, onChange }: Props) {
                   />
                   <div className="min-w-0">
                     <p className="font-medium truncate">{String(lead.company || lead.name || "")}</p>
-                    {lead.email && <p className="text-muted-foreground truncate">{String(lead.email)}</p>}
-                    {lead.qualification_reason && (
+                    {!!lead.email && <p className="text-muted-foreground truncate">{String(lead.email)}</p>}
+                    {!!lead.qualification_reason && (
                       <p className="text-muted-foreground">{String(lead.qualification_reason)}</p>
                     )}
                   </div>
