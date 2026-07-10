@@ -61,22 +61,58 @@ These were already built and deployed before the roadmap was written.
 ## Phase 1 — Platform Foundation
 
 ### 1.1 Living Business Document
-- [ ] Not started
+- **Status:** 🔄 DB scaffold only — feature not built
+- [x] DB columns added: `business_context` JSONB on `businesses`, `business_context_history` table, `notify_blocked` flag — Migration 006
+- [ ] Update mechanism (coordinator agent that proposes + commits updates) — not built
+- [ ] Version history writes — table exists but nothing writes to it
+- [ ] User-facing "Living Document" summary view on Business Dashboard — not built
+- [ ] "Correct this" flow (user tells AI something is wrong → agent updates) — not built
 
 ### 1.2 Dollar Balance System
-- [ ] Not started
+- **Status:** 🔄 DB + daily cost tracking built; per-user balance ledger and Stripe not wired
+- [x] `user_balances` table (balance, tier, Stripe IDs, trial end) — Migration 008
+- [x] `spend_ledger` table (credits/debits per action) — Migration 008
+- [x] Daily per-department cost tracking via `usage_events` + `cost_tracker` service
+- [x] Usage tab on business dashboard shows today's spend by department
+- [x] Daily budget limit enforced in `department_manager.evaluate()` before running tasks
+- [ ] `user_balances` deducted on task completion — not connected; `cost_tracker` tracks separately
+- [ ] Monthly balance grant on Stripe subscription renewal — Stripe not set up
+- [ ] Top-up flow — not built
+- [ ] Billing settings page — stub only
 
 ### 1.3 Task Board
-- [ ] Not started
+- **Status:** 🔄 Mostly complete — notification toggle UI is the only gap
+- [x] `tasks` table activated with `department`, `cost_usd`, `label_color`, `created_by`, `assigned_to` columns
+- [x] Kanban board at `/dashboard/business/{id}/tasks` — four columns (Planned, In Progress, Blocked by User, Completed)
+- [x] Department filter chips at top of board (`DepartmentFilter` component)
+- [x] Color-coded label per department
+- [x] Task card: title, department, status, cost, age
+- [x] Task detail drawer with full output preview, approve/reject (`ApprovalReviewSheet`)
+- [x] User-created tasks — "Add Task" button → form → user or agent assignment
+- [x] Approval queue wired to "Blocked by User" column
+- [ ] Notification toggle UI (`notify_blocked` DB column exists on `businesses` but no settings UI)
 
 ### 1.4 Stripe Billing
-- [ ] Not started
+- **Status:** ❌ Not started
+- [ ] Stripe products and prices
+- [ ] Checkout flow
+- [ ] Webhooks (subscription.created/updated/deleted, payment_failed)
+- [ ] Billing settings page
+- [ ] 14-day free trial with $5 AI spend
+- [ ] Failed payment grace period → pause → suspend
 
 ### 1.5 Language / i18n
-- [ ] Not started
+- **Status:** 🔄 Mostly complete — browser auto-detection not implemented
+- [x] `next-intl` installed and configured
+- [x] All UI strings externalized into locale files (EN, ES, FR, PT, DE, ZH)
+- [x] Language selector dropdown always visible in dashboard header (`LanguageSelector` component)
+- [x] Changing language takes effect immediately via `setLocale()` server action + `router.refresh()`
+- [x] Locale preference persisted in cookie + Supabase user metadata
+- [x] AI agent responses pass locale via `language_instruction` in `department_runner.run_task()`
+- [ ] Browser `Accept-Language` auto-detection on first load — cookie falls back to `en` default; no header sniffing
 
 ### 1.6 Agent Architecture Refactor
-- **Status:** Mostly complete (2026-06-28)
+- **Status:** ✅ Complete (2026-07-10)
 - [x] `BaseDepartmentAgent` — reads business context, checks credits, logs activity, handles approval queue inserts
 - [x] `DepartmentRunner` — AGENT_REGISTRY, `run_task()`, `tick()`, `start()`, `pause()`, `resume()`
 - [x] `DepartmentManager` — macro-scheduler; evaluates tasks and schedules via `manager_next_eval_at`

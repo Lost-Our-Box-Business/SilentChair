@@ -35,7 +35,7 @@ Everything below needs to be built or significantly reworked before V1 launch.
 
 The core systems that everything else depends on. Build these first.
 
-### 1.1 Living Business Document
+### 1.1 Living Business Document `🔄 DB scaffold only — feature not built`
 
 Transform the static `businesses.profile` JSON into a dynamic, versioned, agent-readable document.
 
@@ -45,7 +45,7 @@ Transform the static `businesses.profile` JSON into a dynamic, versioned, agent-
 - Build the user-facing simplified summary view on the Business Dashboard
 - Build the "correct this" flow: user tells AI something is wrong → agent updates the document → summary refreshes
 
-### 1.2 Dollar Balance System
+### 1.2 Dollar Balance System `🔄 Tables + daily tracking built; balance ledger and Stripe not wired`
 
 Per-user AI spend balance powering all agent actions.
 
@@ -56,7 +56,7 @@ Per-user AI spend balance powering all agent actions.
 - After each task completes, cost written to the task record and visible on the Task Board
 - Dashboard widget: balance remaining this month, spend by department, per-task cost history
 
-### 1.3 Task Board
+### 1.3 Task Board `🔄 Mostly complete — notification toggle UI missing`
 
 Sprint-board UI for the user to see all their AI tasks across departments.
 
@@ -70,7 +70,7 @@ Sprint-board UI for the user to see all their AI tasks across departments.
 - Notification toggle (per business): on/off for push/email when task lands in Blocked by User. Stored in `businesses` table as `notify_blocked`. Default: on.
 - Wire up existing approval queue logic to the Blocked by User column
 
-### 1.4 Stripe Billing
+### 1.4 Stripe Billing `❌ Not started`
 
 - Products and prices set up in Stripe dashboard (4 tiers + AI spend top-up products)
 - Checkout flow: new user selects plan, enters payment, subscription created
@@ -79,7 +79,7 @@ Sprint-board UI for the user to see all their AI tasks across departments.
 - 14-day free trial with $5 AI spend included (no card required at signup)
 - Failed payment grace period (3 days) → agent actions paused → account suspended
 
-### 1.5 Language / i18n
+### 1.5 Language / i18n `🔄 Mostly complete — browser Accept-Language auto-detect missing`
 
 - Install and configure `next-intl`
 - Externalize all UI strings into locale files
@@ -89,7 +89,7 @@ Sprint-board UI for the user to see all their AI tasks across departments.
 - Launch with: English, Spanish, French, Portuguese, German
 - AI agent responses: pass the user's language preference in every system prompt
 
-### 1.6 Agent Architecture Refactor
+### 1.6 Agent Architecture Refactor `✅ Complete`
 
 Move from a single content pipeline to a modular per-department agent system that all departments can use.
 
@@ -99,7 +99,7 @@ Move from a single content pipeline to a modular per-department agent system tha
 - Per-business, per-department schedules stored in DB (user-configurable)
 - Celery Beat dispatcher updated to use new system
 
-### 1.7 Website Builder Quality Upgrade
+### 1.7 Website Builder Quality Upgrade `❌ Not started`
 
 The website builder is live but generates bare-bones output and shows no preview during onboarding.
 
