@@ -60,12 +60,31 @@ class LeadGenerationAgent(BaseDepartmentAgent):
 
             await self.update_task(task_id, "completed", output="\n".join(log), cost_usd=cost)
             await self.log_activity(business_id, summary)
+
+            # Propose Living Document updates from market research and qualified leads
+            updates: dict = {}
+            update_parts: list[str] = []
+            mr = result.get("market_research", {})
+            if mr.get("icp"):
+                updates["target_customers"] = mr["icp"]
+                update_parts.append("ICP refined from market research")
+            ql = result.get("qualified_leads", [])
+            if ql:
+                companies = [l.get("company", "") for l in ql if l.get("company")]
+                if companies:
+                    updates["key_decisions"] = context.business_context.get("key_decisions", []) + [
+                        f"Lead gen identified qualified prospects: {', '.join(companies[:5])}"
+                    ]
+                    update_parts.append(f"{len(companies)} qualified prospect(s) noted")
+
             return DeptResult(
                 status="completed",
                 task_id=task_id,
                 summary=summary,
                 output=result,
                 cost_usd=cost,
+                context_updates=updates,
+                context_update_summary="; ".join(update_parts),
             )
         except Exception as e:
             await self.update_task(task_id, "failed", output=str(e))

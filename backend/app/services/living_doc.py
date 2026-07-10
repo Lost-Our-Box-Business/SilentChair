@@ -212,3 +212,54 @@ def propose_correction(business_id: str, user_message: str) -> dict:
         f"User correction: {user_message[:100]}",
         "user_correction",
     )
+
+
+def agent_propose_context_update(
+    business_id: str,
+    dept_type: str,
+    proposed_updates: dict,
+    change_summary: str,
+) -> dict | None:
+    """Coordinator: Haiku decides which agent-proposed updates are worth committing.
+
+    The agent proposes changes after completing a task; this function acts as
+    the gatekeeper — only genuinely new, specific information gets written back.
+    Returns the committed context dict if any updates were accepted, else None.
+    """
+    if not proposed_updates:
+        return None
+
+    current = get_context(business_id)
+
+    prompt = (
+        "You are a business context coordinator. A department agent has proposed updates "
+        "to a business's Living Business Document after completing a task.\n\n"
+        f"Current business context (JSON):\n{json.dumps(current, indent=2)}\n\n"
+        f"Agent department: {dept_type}\n"
+        f"Proposed updates (JSON):\n{json.dumps(proposed_updates, indent=2)}\n\n"
+        "For each proposed field, accept it ONLY if it:\n"
+        "- Contains NEW, SPECIFIC information not already captured in the current context\n"
+        "- Is factual and concrete (not vague or generic)\n"
+        "- Would genuinely improve the document's accuracy\n\n"
+        "Return a JSON object with ONLY the updates to accept (can be a subset of the proposal), "
+        "or {} if nothing should be committed.\n"
+        "Updatable fields: products_services, target_customers, brand_voice, "
+        "current_goals, competitive_context, active_campaigns, key_decisions\n\n"
+        "Return ONLY valid JSON — no markdown, no explanation."
+    )
+
+    try:
+        raw = _haiku(prompt, 600)
+        accepted = _parse_json_response(raw)
+    except Exception:
+        return None
+
+    if not accepted:
+        return None
+
+    return update_context(
+        business_id,
+        accepted,
+        f"Agent update ({dept_type}): {change_summary}",
+        f"agent_{dept_type}",
+    )

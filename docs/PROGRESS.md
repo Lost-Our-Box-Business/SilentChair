@@ -61,7 +61,7 @@ These were already built and deployed before the roadmap was written.
 ## Phase 1 — Platform Foundation
 
 ### 1.1 Living Business Document
-- **Status:** 🔄 Mostly complete — agents don't autonomously write back to business_context
+- **Status:** ✅ Complete (2026-07-10)
 - [x] DB columns: `business_context` JSONB + `business_context_updated_at` on `businesses` — Migration 006
 - [x] `business_context_history` table + version snapshots via `_snapshot()` — written before every update
 - [x] `notify_blocked` flag on `businesses` — Migration 006
@@ -71,7 +71,7 @@ These were already built and deployed before the roadmap was written.
 - [x] `BusinessOverviewCard.tsx` — shows summary on business dashboard
 - [x] "Correct this" flow — user types correction → `propose_correction()` → Haiku interprets changes → `update_context()` merges + snapshots → UI refreshes (`living_doc.py`, `living-doc-api.ts`, `BusinessOverviewCard.tsx`)
 - [x] Agents READ `business_context` via `get_business_context()` in `BaseDepartmentAgent`
-- [ ] Agents WRITE back to `business_context` (propose updates that a coordinator commits) — not built; agents only read
+- [x] Agents WRITE back to `business_context` via coordinator pattern — `DeptResult.context_updates` carries proposals; `_post_run()` in `department_runner.py` calls `living_doc.agent_propose_context_update()`, which uses Haiku to validate proposals before committing via `update_context()`. `LeadGenerationAgent` proposes `target_customers` (ICP from market research) and `key_decisions` (qualified prospect companies) after each successful run. (2026-07-10)
 
 ### 1.2 Dollar Balance System
 - **Status:** 🔄 DB + daily cost tracking built; per-user balance ledger and Stripe not wired

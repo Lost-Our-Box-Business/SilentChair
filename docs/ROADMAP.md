@@ -35,7 +35,7 @@ Everything below needs to be built or significantly reworked before V1 launch.
 
 The core systems that everything else depends on. Build these first.
 
-### 1.1 Living Business Document `🔄 Mostly complete — agents don't write back to business_context`
+### 1.1 Living Business Document `✅ Complete`
 
 Transform the static `businesses.profile` JSON into a dynamic, versioned, agent-readable document.
 

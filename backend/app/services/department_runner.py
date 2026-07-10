@@ -132,8 +132,22 @@ def run_task(
         notify(business_id, f"{dept_type.replace('_', ' ').title()} needs your approval.", requires_approval=True)
 
     # Manager re-evaluates and refreshes narrative (non-blocking: run in background thread)
+    _result = result  # capture for closure
     def _post_run():
         try:
+            # If agent proposed Living Document updates, let the coordinator decide
+            if _result.context_updates:
+                try:
+                    from app.services import living_doc
+                    living_doc.agent_propose_context_update(
+                        business_id,
+                        dept_type,
+                        _result.context_updates,
+                        _result.context_update_summary,
+                    )
+                except Exception:
+                    pass
+
             department_manager.update_narrative(business_id, dept_type)
             decision = department_manager.evaluate(business_id, dept_type)
             if decision.action == "start_task" and decision.task_id:

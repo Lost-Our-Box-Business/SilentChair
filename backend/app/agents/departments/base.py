@@ -27,6 +27,8 @@ class DeptResult:
     output: dict
     cost_usd: float
     resume_at: Optional[datetime] = None   # agent micro-scheduling: check back at this time
+    context_updates: dict = field(default_factory=dict)   # proposed Living Document updates
+    context_update_summary: str = ""                       # human-readable description of changes
 
 
 class BaseDepartmentAgent(ABC):
