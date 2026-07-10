@@ -248,9 +248,16 @@ class DepartmentManager:
         )
         raw = resp.content[0].text.strip()
 
-        # Parse structured response
+        # Parse structured response — strip markdown code fences the LLM sometimes adds
         try:
-            parsed = json.loads(raw)
+            clean = raw.strip()
+            if clean.startswith("```"):
+                lines = clean.splitlines()
+                inner = lines[1:] if len(lines) > 1 else lines
+                if inner and inner[-1].strip() == "```":
+                    inner = inner[:-1]
+                clean = "\n".join(inner).strip()
+            parsed = json.loads(clean)
             reply = parsed.get("reply", raw)
             actions = parsed.get("actions", [])
         except (json.JSONDecodeError, AttributeError):
@@ -258,12 +265,13 @@ class DepartmentManager:
             actions = []
 
         # Execute actions
+        created_task_ids: list[str] = []
         if actions:
             db = get_supabase()
             label_color = dept_row.get("label_color", "#6b7280")
             for action in actions:
                 if action.get("type") == "create_task" and action.get("title"):
-                    db.table("tasks").insert({
+                    row = db.table("tasks").insert({
                         "business_id": business_id,
                         "title": action["title"],
                         "description": action.get("description", ""),
@@ -273,6 +281,23 @@ class DepartmentManager:
                         "department": dept_type,
                         "label_color": label_color,
                     }).execute()
+                    if row.data:
+                        created_task_ids.append(row.data[0]["id"])
+
+        # Trigger evaluation so the agent picks up newly created tasks immediately
+        if created_task_ids:
+            def _trigger_eval(_biz=business_id, _dept=dept_type):
+                try:
+                    from app.services import department_runner
+                    decision = _manager.evaluate(_biz, _dept)
+                    if decision.action == "start_task" and decision.task_id:
+                        department_runner.run_task(_biz, _dept, decision.task_id)
+                    elif decision.action == "schedule_later" and decision.task_id and decision.run_at:
+                        department_runner._schedule_task(_biz, _dept, decision.task_id, decision.run_at, "en")
+                except Exception:
+                    pass
+            import threading
+            threading.Thread(target=_trigger_eval, daemon=True).start()
 
         # Persist chat history (store the natural reply, not raw JSON)
         history.append({"role": "user", "content": user_message})
