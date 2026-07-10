@@ -8,14 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import {
   Play, Loader2, CheckCircle2, Clock, AlertCircle, RefreshCw, ExternalLink,
-  Users, FileText, Receipt, DollarSign, Settings,
+  Users, FileText, Receipt, DollarSign, Settings, Eye,
 } from "lucide-react";
 import {
-  getActivityFeed, approveActivity, runPipeline,
+  getActivityFeed, runPipeline,
   getLeads, getContracts, getInvoices,
   updateLeadStatus, updateContractStatus, updateInvoiceStatus,
   type ActivityEntry, type PipelineRunResult, type Lead, type Contract, type Invoice,
 } from "@/lib/activity-api";
+import { getTasks, approveTask, rejectTask, type Task } from "@/lib/tasks-api";
+import { ApprovalReviewSheet } from "@/components/tasks/ApprovalReviewSheet";
 import { useLocale, useTranslations } from "next-intl";
 import { getBudgetState, type BudgetState } from "@/lib/usage-api";
 import { BusinessOverviewCard } from "@/components/dashboard/BusinessOverviewCard";
@@ -46,6 +48,49 @@ const INVOICE_STATUS_COLORS: Record<Invoice["status"], string> = {
 } as const;
 
 type Tab = "activity" | "leads" | "contracts" | "invoices" | "usage";
+
+// ── Pending task card (dashboard variant) ─────────────────────────────────────
+
+function PendingTaskCard({ task, onDone }: { task: Task; onDone: () => void }) {
+  const [reviewOpen, setReviewOpen] = useState(false);
+
+  async function handleApprove(id: string) {
+    await approveTask(id);
+    onDone();
+  }
+
+  async function handleReject(id: string, reason: string) {
+    await rejectTask(id, reason);
+    onDone();
+  }
+
+  return (
+    <Card className="border-yellow-500/40 bg-yellow-500/5">
+      <CardHeader className="py-3 px-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">{task.title}</p>
+            <p className="text-xs text-muted-foreground">{timeAgo(task.created_at)}</p>
+          </div>
+          <Button
+            size="sm" variant="outline"
+            className="shrink-0 text-xs border-yellow-500/50 hover:bg-yellow-500/10"
+            onClick={() => setReviewOpen(true)}
+          >
+            <Eye className="h-3 w-3 mr-1" /> Review
+          </Button>
+        </div>
+      </CardHeader>
+      <ApprovalReviewSheet
+        open={reviewOpen}
+        onOpenChange={setReviewOpen}
+        task={task}
+        onApprove={handleApprove}
+        onReject={handleReject}
+      />
+    </Card>
+  );
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -92,6 +137,7 @@ export default function BusinessDetailPage() {
   };
 
   const [feed, setFeed] = useState<ActivityEntry[]>([]);
+  const [pendingTasks, setPendingTasks] = useState<Task[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -101,19 +147,20 @@ export default function BusinessDetailPage() {
   const [running, setRunning] = useState(false);
   const [runResult, setRunResult] = useState<PipelineRunResult | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
-  const [approvingId, setApprovingId] = useState<string | null>(null);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [feedData, leadsData, contractsData, invoicesData, budgetData] = await Promise.all([
+      const [feedData, pendingTasksData, leadsData, contractsData, invoicesData, budgetData] = await Promise.all([
         getActivityFeed(businessId),
+        getTasks(businessId, { status: "awaiting_approval" }),
         getLeads(businessId),
         getContracts(businessId),
         getInvoices(businessId),
         getBudgetState(businessId).catch(() => null),
       ]);
       setFeed(feedData);
+      setPendingTasks(pendingTasksData);
       setLeads(leadsData);
       setContracts(contractsData);
       setInvoices(invoicesData);
@@ -124,6 +171,15 @@ export default function BusinessDetailPage() {
   }, [businessId]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  // Refetch when the user returns to this tab after approving from the task board
+  useEffect(() => {
+    function onVisibilityChange() {
+      if (!document.hidden) loadAll();
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [loadAll]);
 
   async function handleRun() {
     setRunning(true); setRunResult(null); setRunError(null);
@@ -136,14 +192,6 @@ export default function BusinessDetailPage() {
     } finally { setRunning(false); }
   }
 
-  async function handleApprove(id: string) {
-    setApprovingId(id);
-    try { await approveActivity(id); await loadAll(); }
-    catch { /* leave entry visible */ }
-    finally { setApprovingId(null); }
-  }
-
-  const pendingApprovals = feed.filter((e) => e.requires_approval && !e.approved_at);
 
   const TABS: { id: Tab; label: string; icon: React.ElementType; count?: number }[] = [
     { id: "activity", label: t("tabActivity"), icon: Clock, count: feed.length },
@@ -229,98 +277,14 @@ export default function BusinessDetailPage() {
       )}
 
       {/* Pending approvals (always visible) */}
-      {pendingApprovals.length > 0 && (
+      {pendingTasks.length > 0 && (
         <div className="space-y-2">
           <h2 className="text-sm font-medium flex items-center gap-1.5">
-            <AlertCircle className="h-4 w-4 text-yellow-500" /> {t("pendingApprovals", { count: pendingApprovals.length })}
+            <AlertCircle className="h-4 w-4 text-yellow-500" /> {t("pendingApprovals", { count: pendingTasks.length })}
           </h2>
-          {pendingApprovals.map((entry) => {
-            const emails = entry.detail?.outreach_emails ?? [];
-            const articles = entry.detail?.edited_articles ?? [];
-            return (
-              <Card key={entry.id} className="border-yellow-500/40 bg-yellow-500/5">
-                <CardHeader className="py-3 px-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium">{entry.summary}</p>
-                      <p className="text-xs text-muted-foreground">{timeAgo(entry.created_at)}</p>
-                    </div>
-                    <Button
-                      size="sm" variant="outline"
-                      className="shrink-0 text-xs border-yellow-500/50 hover:bg-yellow-500/10"
-                      onClick={() => handleApprove(entry.id)}
-                      disabled={approvingId === entry.id}
-                    >
-                      {approvingId === entry.id && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                      {t("approveAndSend")}
-                    </Button>
-                  </div>
-                </CardHeader>
-
-                {/* Outreach email previews */}
-                {emails.length > 0 && (
-                  <CardContent className="pt-0 pb-3 px-4 space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      {t("emailsQueued", { count: emails.length })}
-                    </p>
-                    {emails.map((email, i) => (
-                      <details key={i} className="rounded-lg border bg-background overflow-hidden">
-                        <summary className="flex items-center justify-between gap-3 px-3 py-2 cursor-pointer list-none hover:bg-muted/40 transition-colors">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-xs font-medium truncate">{email.subject}</span>
-                          </div>
-                          <span className="text-[10px] text-muted-foreground shrink-0">
-                            → {email.to_name} &lt;{email.to_email}&gt;
-                          </span>
-                        </summary>
-                        <div className="border-t px-3 py-2 space-y-2">
-                          <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
-                            <span><span className="font-medium">To:</span> {email.to_name} &lt;{email.to_email}&gt;</span>
-                            {(email.lead_data?.company as string) && (
-                              <span><span className="font-medium">Company:</span> {email.lead_data.company as string}</span>
-                            )}
-                            {(email.lead_data?.score as number) && (
-                              <span><span className="font-medium">{t("score")}:</span> {email.lead_data.score as number}/10</span>
-                            )}
-                          </div>
-                          <div
-                            className="text-xs leading-relaxed rounded bg-muted/30 p-3 max-h-48 overflow-y-auto"
-                            dangerouslySetInnerHTML={{ __html: email.body_html }}
-                          />
-                        </div>
-                      </details>
-                    ))}
-                  </CardContent>
-                )}
-
-                {/* Article previews */}
-                {articles.length > 0 && (
-                  <CardContent className="pt-0 pb-3 px-4 space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      {t("articlesQueued", { count: articles.length })}
-                    </p>
-                    {articles.map((article, i) => (
-                      <details key={i} className="rounded-lg border bg-background overflow-hidden">
-                        <summary className="flex items-center justify-between gap-3 px-3 py-2 cursor-pointer list-none hover:bg-muted/40 transition-colors">
-                          <span className="text-xs font-medium truncate">{article.title}</span>
-                          <span className="text-[10px] text-muted-foreground shrink-0 font-mono">{article.slug}</span>
-                        </summary>
-                        <div className="border-t px-3 py-2 space-y-1.5">
-                          {article.meta_description && (
-                            <p className="text-[11px] text-muted-foreground italic">{article.meta_description}</p>
-                          )}
-                          <div
-                            className="text-xs leading-relaxed rounded bg-muted/30 p-3 max-h-48 overflow-y-auto"
-                            dangerouslySetInnerHTML={{ __html: article.content }}
-                          />
-                        </div>
-                      </details>
-                    ))}
-                  </CardContent>
-                )}
-              </Card>
-            );
-          })}
+          {pendingTasks.map((task) => (
+            <PendingTaskCard key={task.id} task={task} onDone={loadAll} />
+          ))}
         </div>
       )}
 
