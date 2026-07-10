@@ -263,6 +263,25 @@
     "backToAgents": "← 代理",
     "lastRun": "上次运行",
     "nextEval": "下次检查",
-    "todayCost": "今日费用"
+    "todayCost": "今日费用",
+    "scheduleTitle": "调度",
+    "scheduleDescManager": "由管理器控制 — AI 根据任务完成情况决定下次运行时间。",
+    "scheduleDescCustom": "自定义调度已激活 — 覆盖 AI 时间安排。",
+    "scheduleManager": "管理器决定",
+    "scheduleGroupInterval": "每隔",
+    "scheduleEvery2h": "每2小时",
+    "scheduleEvery4h": "每4小时",
+    "scheduleEvery8h": "每8小时",
+    "scheduleEvery12h": "每12小时",
+    "scheduleGroupDaily": "每天",
+    "scheduleDailyAM": "每天 9:00 UTC",
+    "scheduleDailyNoon": "每天 12:00 UTC",
+    "scheduleDailyPM": "每天 18:00 UTC",
+    "scheduleGroupWeekdays": "仅工作日",
+    "scheduleWeekdaysAM": "工作日 9:00 UTC",
+    "scheduleWeekdaysNoon": "工作日 12:00 UTC",
+    "scheduleSave": "保存调度",
+    "scheduleSaving": "保存中…",
+    "scheduleSaved": "已保存！"
   }
 }

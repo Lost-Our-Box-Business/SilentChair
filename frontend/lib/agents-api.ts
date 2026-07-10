@@ -1,5 +1,11 @@
 import { API_URL } from "./api";
 
+export type ScheduleConfig =
+  | { type: "interval"; hours: number }
+  | { type: "daily"; hour: number }
+  | { type: "weekdays"; hour: number }
+  | null;
+
 export interface DepartmentStatus {
   dept_type: string;
   name: string;
@@ -11,6 +17,7 @@ export interface DepartmentStatus {
   manager_next_eval_at: string | null;
   status_narrative: string;
   today_cost_usd: number;
+  schedule_config: ScheduleConfig;
 }
 
 export interface DepartmentDetail extends DepartmentStatus {
@@ -76,6 +83,15 @@ export async function rejectQueueItem(businessId: string, queueId: string, userI
   });
   if (!res.ok) throw new Error("Failed to reject item");
   return res.json();
+}
+
+export async function setDeptSchedule(businessId: string, deptType: string, scheduleConfig: ScheduleConfig): Promise<void> {
+  const res = await fetch(`${API_URL}/api/departments/${businessId}/${deptType}/schedule`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ schedule_config: scheduleConfig }),
+  });
+  if (!res.ok) throw new Error(`Failed to save schedule: ${await res.text()}`);
 }
 
 export async function getDepartment(businessId: string, deptType: string): Promise<DepartmentDetail> {

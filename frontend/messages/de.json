@@ -263,6 +263,25 @@
     "backToAgents": "← Agenten",
     "lastRun": "Letzter Lauf",
     "nextEval": "Nächste Prüfung",
-    "todayCost": "Heutige Kosten"
+    "todayCost": "Heutige Kosten",
+    "scheduleTitle": "Zeitplan",
+    "scheduleDescManager": "Vom Manager gesteuert — die KI entscheidet, wann als nächstes ausgeführt wird.",
+    "scheduleDescCustom": "Benutzerdefinierter Zeitplan aktiv — überschreibt das KI-Timing.",
+    "scheduleManager": "Manager entscheidet",
+    "scheduleGroupInterval": "Alle",
+    "scheduleEvery2h": "Alle 2 Stunden",
+    "scheduleEvery4h": "Alle 4 Stunden",
+    "scheduleEvery8h": "Alle 8 Stunden",
+    "scheduleEvery12h": "Alle 12 Stunden",
+    "scheduleGroupDaily": "Täglich",
+    "scheduleDailyAM": "Täglich um 9 Uhr UTC",
+    "scheduleDailyNoon": "Täglich um 12 Uhr UTC",
+    "scheduleDailyPM": "Täglich um 18 Uhr UTC",
+    "scheduleGroupWeekdays": "Nur Wochentage",
+    "scheduleWeekdaysAM": "Wochentage um 9 Uhr UTC",
+    "scheduleWeekdaysNoon": "Wochentage um 12 Uhr UTC",
+    "scheduleSave": "Zeitplan speichern",
+    "scheduleSaving": "Wird gespeichert…",
+    "scheduleSaved": "Gespeichert!"
   }
 }

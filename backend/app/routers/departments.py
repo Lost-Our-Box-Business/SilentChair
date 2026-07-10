@@ -21,6 +21,10 @@ class ApprovalAction(BaseModel):
     reason: str = ""
 
 
+class ScheduleConfigRequest(BaseModel):
+    schedule_config: dict | None = None
+
+
 def _full_dept_catalog() -> dict:
     """Merge all archetype department catalogs into one dict keyed by dept_type."""
     catalog = {}
@@ -208,6 +212,18 @@ def get_department(business_id: str, dept_type: str):
         return row
     except HTTPException:
         raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/{business_id}/{dept_type}/schedule")
+def set_dept_schedule(business_id: str, dept_type: str, body: ScheduleConfigRequest):
+    """Save (or clear) a user-defined schedule for a department."""
+    try:
+        db = get_supabase()
+        db.table("departments").update({"schedule_config": body.schedule_config}).eq("business_id", business_id).eq("dept_type", dept_type).execute()
+        return {"schedule_config": body.schedule_config}
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))

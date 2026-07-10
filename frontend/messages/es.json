@@ -263,6 +263,25 @@
     "backToAgents": "← Agentes",
     "lastRun": "Última ejecución",
     "nextEval": "Próxima revisión",
-    "todayCost": "Costo de hoy"
+    "todayCost": "Costo de hoy",
+    "scheduleTitle": "Horario",
+    "scheduleDescManager": "Controlado por el gestor — la IA decide cuándo ejecutar a continuación.",
+    "scheduleDescCustom": "Horario personalizado activo — anula el tiempo de la IA.",
+    "scheduleManager": "El gestor decide",
+    "scheduleGroupInterval": "Ejecutar cada",
+    "scheduleEvery2h": "Cada 2 horas",
+    "scheduleEvery4h": "Cada 4 horas",
+    "scheduleEvery8h": "Cada 8 horas",
+    "scheduleEvery12h": "Cada 12 horas",
+    "scheduleGroupDaily": "Diariamente",
+    "scheduleDailyAM": "Diariamente a las 9 AM UTC",
+    "scheduleDailyNoon": "Diariamente a las 12 PM UTC",
+    "scheduleDailyPM": "Diariamente a las 6 PM UTC",
+    "scheduleGroupWeekdays": "Solo días hábiles",
+    "scheduleWeekdaysAM": "Días hábiles a las 9 AM UTC",
+    "scheduleWeekdaysNoon": "Días hábiles a las 12 PM UTC",
+    "scheduleSave": "Guardar horario",
+    "scheduleSaving": "Guardando…",
+    "scheduleSaved": "¡Guardado!"
   }
 }

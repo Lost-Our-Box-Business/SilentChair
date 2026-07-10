@@ -6,13 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Send, MessageSquare, FileText, CheckCircle2, X } from "lucide-react";
+import { Loader2, Send, MessageSquare, FileText, CheckCircle2, X, Clock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { TaskBoard } from "@/components/tasks/TaskBoard";
 import {
   getDepartment, chatWithManager, getDeptApprovalQueue,
-  approveDeptQueueItem, rejectDeptQueueItem,
-  type DepartmentDetail, type ApprovalQueueItem,
+  approveDeptQueueItem, rejectDeptQueueItem, setDeptSchedule,
+  type DepartmentDetail, type ApprovalQueueItem, type ScheduleConfig,
 } from "@/lib/agents-api";
 import {
   getTasks, approveTask, rejectTask, deleteTask,
@@ -59,6 +59,10 @@ export default function DepartmentPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  const [scheduleValue, setScheduleValue] = useState<string>("manager");
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [scheduleSaved, setScheduleSaved] = useState(false);
+
   useEffect(() => {
     createClient().auth.getUser().then(({ data }) => {
       setUserId(data.user?.id ?? null);
@@ -74,6 +78,7 @@ export default function DepartmentPage() {
       ]);
       setDept(deptData);
       setChatHistory(deptData.manager_chat_history ?? []);
+      setScheduleValue(scheduleConfigToValue(deptData.schedule_config ?? null));
       setTasks(taskData.filter((t) => t.department?.toLowerCase().replace(/\s+/g, "_") === deptType ||
         t.department?.toLowerCase() === deptType.replace(/_/g, " ")));
       setQueue(queueData);
@@ -161,6 +166,36 @@ export default function DepartmentPage() {
     setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
   }
 
+  function scheduleConfigToValue(cfg: ScheduleConfig): string {
+    if (!cfg) return "manager";
+    if (cfg.type === "interval") return `interval_${cfg.hours}`;
+    if (cfg.type === "daily") return `daily_${cfg.hour}`;
+    if (cfg.type === "weekdays") return `weekdays_${cfg.hour}`;
+    return "manager";
+  }
+
+  function valueToScheduleConfig(value: string): ScheduleConfig {
+    if (value === "manager") return null;
+    const [type, param] = value.split("_");
+    const n = parseInt(param, 10);
+    if (type === "interval") return { type: "interval", hours: n };
+    if (type === "daily") return { type: "daily", hour: n };
+    if (type === "weekdays") return { type: "weekdays", hour: n };
+    return null;
+  }
+
+  async function handleSaveSchedule() {
+    setScheduleSaving(true);
+    setScheduleSaved(false);
+    try {
+      await setDeptSchedule(businessId, deptType, valueToScheduleConfig(scheduleValue));
+      setScheduleSaved(true);
+      setTimeout(() => setScheduleSaved(false), 2000);
+    } finally {
+      setScheduleSaving(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -197,7 +232,7 @@ export default function DepartmentPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-3">
         {/* Narrative */}
         <Card>
           <CardHeader className="pb-3">
@@ -273,6 +308,56 @@ export default function DepartmentPage() {
                 <Send className="h-3.5 w-3.5" />
               </Button>
             </div>
+          </CardContent>
+        </Card>
+        {/* Schedule */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              {t("scheduleTitle")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              {scheduleValue === "manager" ? t("scheduleDescManager") : t("scheduleDescCustom")}
+            </p>
+            <select
+              value={scheduleValue}
+              onChange={(e) => { setScheduleValue(e.target.value); setScheduleSaved(false); }}
+              className="w-full h-8 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="manager">{t("scheduleManager")}</option>
+              <optgroup label={t("scheduleGroupInterval")}>
+                <option value="interval_2">{t("scheduleEvery2h")}</option>
+                <option value="interval_4">{t("scheduleEvery4h")}</option>
+                <option value="interval_8">{t("scheduleEvery8h")}</option>
+                <option value="interval_12">{t("scheduleEvery12h")}</option>
+              </optgroup>
+              <optgroup label={t("scheduleGroupDaily")}>
+                <option value="daily_9">{t("scheduleDailyAM")}</option>
+                <option value="daily_12">{t("scheduleDailyNoon")}</option>
+                <option value="daily_18">{t("scheduleDailyPM")}</option>
+              </optgroup>
+              <optgroup label={t("scheduleGroupWeekdays")}>
+                <option value="weekdays_9">{t("scheduleWeekdaysAM")}</option>
+                <option value="weekdays_12">{t("scheduleWeekdaysNoon")}</option>
+              </optgroup>
+            </select>
+            <Button
+              size="sm"
+              className="w-full h-7 text-xs"
+              onClick={handleSaveSchedule}
+              disabled={scheduleSaving}
+            >
+              {scheduleSaving ? (
+                <><Loader2 className="h-3 w-3 mr-1.5 animate-spin" />{t("scheduleSaving")}</>
+              ) : scheduleSaved ? (
+                <><CheckCircle2 className="h-3 w-3 mr-1.5" />{t("scheduleSaved")}</>
+              ) : (
+                t("scheduleSave")
+              )}
+            </Button>
           </CardContent>
         </Card>
       </div>

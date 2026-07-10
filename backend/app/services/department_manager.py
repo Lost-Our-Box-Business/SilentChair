@@ -16,6 +16,24 @@ from app.config import settings
 from app.db.client import get_supabase
 from app.services.cost_tracker import get_budget_state
 
+def _next_schedule_time(config: dict) -> datetime:
+    """Compute the next eval datetime from a user-defined schedule_config."""
+    now = datetime.now(timezone.utc)
+    t = config.get("type")
+    if t == "interval":
+        return now + timedelta(hours=max(1, int(config.get("hours", 1))))
+    elif t in ("daily", "weekdays"):
+        hour = int(config.get("hour", 9))
+        candidate = now.replace(hour=hour, minute=0, second=0, microsecond=0)
+        if candidate <= now:
+            candidate += timedelta(days=1)
+        if t == "weekdays":
+            while candidate.weekday() >= 5:  # skip Sat(5) and Sun(6)
+                candidate += timedelta(days=1)
+        return candidate
+    return now + timedelta(hours=1)
+
+
 DEPT_DESCRIPTIONS: dict[str, str] = {
     "marketing": "content creation, SEO, social media, and content distribution",
     "lead_generation": "market research, lead identification, qualification, and outreach",
@@ -136,6 +154,7 @@ class DepartmentManager:
         budget = get_budget_state(business_id)
         dept_row = _load_dept_row(business_id, dept_type)
         desc = DEPT_DESCRIPTIONS.get(dept_type, dept_type)
+        schedule_config = dept_row.get("schedule_config") or None
 
         # If an agent is already in_progress, do nothing — don't pile on
         if tasks["in_progress"] or tasks["awaiting_approval"]:
@@ -152,15 +171,15 @@ class DepartmentManager:
 
         planned = tasks["planned"]
         if not planned:
-            # No work to do — schedule a self-check based on cadence
+            next_eval = _next_schedule_time(schedule_config) if schedule_config else datetime.now(timezone.utc) + timedelta(hours=1)
             _update_dept(business_id, dept_type, {
-                "manager_next_eval_at": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+                "manager_next_eval_at": next_eval.isoformat(),
             })
             return ManagerDecision(
                 action="idle",
                 task_id=None,
                 run_at=None,
-                reason="No planned tasks. Checking again in 1 hour.",
+                reason="No planned tasks. Checking again later.",
             )
 
         # Budget check — if no remaining budget, defer
@@ -173,7 +192,7 @@ class DepartmentManager:
                 action="request_budget",
                 task_id=None,
                 run_at=None,
-                reason=f"Daily budget exhausted. Will retry in 6 hours.",
+                reason="Daily budget exhausted. Will retry in 6 hours.",
             )
 
         # Ask LLM to decide which task to start and when
@@ -188,7 +207,8 @@ class DepartmentManager:
             reason = parsed.get("reason", "Manager decision.")
 
             run_at = datetime.now(timezone.utc) + timedelta(minutes=delay_minutes)
-            next_eval = run_at + timedelta(hours=1)
+            # After this task runs, use user schedule if configured; else default +1h
+            next_eval = _next_schedule_time(schedule_config) if schedule_config else run_at + timedelta(hours=1)
             _update_dept(business_id, dept_type, {"manager_next_eval_at": next_eval.isoformat()})
 
             if action == "start_task" and delay_minutes == 0 and task_id:

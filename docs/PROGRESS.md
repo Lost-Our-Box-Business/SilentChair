@@ -83,7 +83,7 @@ These were already built and deployed before the roadmap was written.
 - [x] `ApprovalQueue` backend — `list_pending`, `approve`, `reject`; API endpoints in `routers/agents.py`
 - [x] Per-dept schedules stored in DB (`departments.manager_next_eval_at`)
 - [x] Background dispatcher — replaced Celery+Redis with APScheduler + `threading.Timer` (2026-06-28)
-- [ ] User-configurable schedules UI (let users set when each dept runs)
+- [x] User-configurable schedules UI — `schedule_config` JSONB column on `departments`; `_next_schedule_time()` in `department_manager.evaluate()` uses it instead of hardcoded +1h; `PATCH /departments/{biz}/{dept}/schedule` endpoint; Schedule card on department detail page with presets (interval 2/4/8/12h, daily/weekdays at 9AM/12PM/6PM UTC); manager-controlled is the default. (2026-07-10)
 - [x] "Edit" action in approval flow — edit-and-approve mode in `ApprovalReviewSheet`; only shown when `task.output_meta.queue_id` exists. `ApprovalEditForm` handles per-type editing (email subjects, article titles/slugs, lead include/exclude). Saves edited payload via `PATCH /api/tasks/{id}/approval-content` before approving. (2026-07-10)
 - [x] Standalone approval queue page — `/dashboard/business/[businessId]/approvals`; polls every 15s; amber card per pending task; opens `ApprovalReviewSheet` inline; Approvals sub-item added to sidebar for all 6 locales. (2026-07-10)
 

@@ -263,6 +263,25 @@
     "backToAgents": "← Agents",
     "lastRun": "Last run",
     "nextEval": "Next check",
-    "todayCost": "Today's cost"
+    "todayCost": "Today's cost",
+    "scheduleTitle": "Schedule",
+    "scheduleDescManager": "Manager-controlled — the AI decides when to run next based on task completion.",
+    "scheduleDescCustom": "Custom schedule active — overrides AI timing.",
+    "scheduleManager": "Manager decides",
+    "scheduleGroupInterval": "Run every",
+    "scheduleEvery2h": "Every 2 hours",
+    "scheduleEvery4h": "Every 4 hours",
+    "scheduleEvery8h": "Every 8 hours",
+    "scheduleEvery12h": "Every 12 hours",
+    "scheduleGroupDaily": "Daily",
+    "scheduleDailyAM": "Daily at 9 AM UTC",
+    "scheduleDailyNoon": "Daily at 12 PM UTC",
+    "scheduleDailyPM": "Daily at 6 PM UTC",
+    "scheduleGroupWeekdays": "Weekdays only",
+    "scheduleWeekdaysAM": "Weekdays at 9 AM UTC",
+    "scheduleWeekdaysNoon": "Weekdays at 12 PM UTC",
+    "scheduleSave": "Save schedule",
+    "scheduleSaving": "Saving…",
+    "scheduleSaved": "Saved!"
   }
 }
