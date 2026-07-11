@@ -1,0 +1,3 @@
+[submodule "docs/Agent Files"]
+	path = docs/Agent Files
+	url = https://github.com/msitarzewski/agency-agents.git
