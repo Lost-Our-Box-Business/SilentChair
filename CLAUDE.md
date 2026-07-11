@@ -24,6 +24,10 @@ How to update it:
 
 Do this before committing — the commit message and `PROGRESS.md` update go together.
 
+## Agent Roster
+
+Before starting any non-trivial task, read `docs/AGENTS.md`, find the matching category, and read the listed agent files (first ~80 lines each) to load the right methodology before working. Agent files live in `docs/Agent Files/` (git submodule).
+
 ## Key Conventions
 
 - All agent classes extend `BaseDepartmentAgent` (`backend/app/agents/departments/base.py`)
