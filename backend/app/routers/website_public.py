@@ -2,7 +2,8 @@
 
 Served under /public prefix. These endpoints are called by published
 websites at {slug}.silentchair.app to fetch dynamic content sections.
-CORS is handled via the subdomain_cors middleware in main.py.
+CORS is handled via allow_origin_regex in CORSMiddleware (main.py) and
+explicit headers set on each response below.
 """
 from fastapi import APIRouter, HTTPException, Response
 
@@ -13,9 +14,9 @@ router = APIRouter(tags=["website-public"])
 
 @router.get("/website/{website_id}/sections")
 async def get_public_sections(
+    response: Response,
     website_id: str,
     type: str | None = None,
-    response: Response = None,
 ):
     """Return published content sections for a website.
 
