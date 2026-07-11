@@ -58,6 +58,17 @@ export async function sendWebsiteMessage(
   });
 }
 
+export async function buildWebsite(websiteId: string): Promise<{
+  files: WebsiteFile[];
+  page_list: { slug: string; title: string }[];
+  reply: string;
+}> {
+  return apiFetch(`/api/website/build`, {
+    method: "POST",
+    body: JSON.stringify({ website_id: websiteId }),
+  });
+}
+
 export async function publishWebsite(websiteId: string): Promise<{ published_url: string }> {
   return apiFetch(`/api/website/${websiteId}/publish`, { method: "POST" });
 }

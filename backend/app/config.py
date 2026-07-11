@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     frontend_url: str = "http://localhost:3000"
     secret_key: str = "change-me-in-production"
+    public_api_url: str = "http://localhost:8000"
 
 
 settings = Settings()

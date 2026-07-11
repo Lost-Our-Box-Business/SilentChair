@@ -11,7 +11,7 @@ from app.models.website import (
     ChatMessage,
     CustomDomainRequest,
 )
-from app.agents.website_builder import run_website_turn
+from app.agents.website_builder import run_website_turn, auto_build_website
 from app.tools.storage import upload_website_files, get_public_url
 
 router = APIRouter(tags=["website"])
@@ -148,6 +148,24 @@ async def publish_website(website_id: str):
     }).eq("id", website_id).execute()
 
     return {"published_url": published_url}
+
+
+@router.post("/website/build")
+async def build_website(payload: dict):
+    """Trigger full multi-page auto-build for a website. Called once on website creation."""
+    website_id = payload.get("website_id")
+    if not website_id:
+        raise HTTPException(status_code=422, detail="website_id required")
+    sb = get_supabase()
+    row = sb.table("websites").select("id").eq("id", website_id).execute()
+    if not row.data:
+        raise HTTPException(status_code=404, detail="Website not found")
+    result = auto_build_website(website_id)
+    return {
+        "files": result["files"],
+        "page_list": result["page_list"],
+        "reply": result["reply"],
+    }
 
 
 @router.patch("/website/{website_id}/custom_domain")
