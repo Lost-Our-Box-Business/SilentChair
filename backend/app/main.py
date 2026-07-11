@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.routers import interview, departments, activity, crm, usage, website, living_doc, tasks, agents, website_public
@@ -15,6 +15,7 @@ _allowed_origins = list({
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
+    allow_origin_regex=r"https://.*\.silentchair\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -30,16 +31,6 @@ app.include_router(living_doc.router, prefix="/api")
 app.include_router(tasks.router, prefix="/api")
 app.include_router(agents.router, prefix="/api")
 app.include_router(website_public.router, prefix="/public")
-
-
-@app.middleware("http")
-async def subdomain_cors(request: Request, call_next):
-    """Allow published websites at *.silentchair.app to call the public API."""
-    response = await call_next(request)
-    origin = request.headers.get("origin", "")
-    if origin.endswith(".silentchair.app") and "access-control-allow-origin" not in response.headers:
-        response.headers["access-control-allow-origin"] = origin
-    return response
 
 
 @app.get("/health")
